@@ -1,6 +1,7 @@
 import os
 import inspect
 import subprocess
+import argparse
 from fabric import Connection
 from invoke import UnexpectedExit
 from jinja2 import Environment, PackageLoader, FileSystemLoader
@@ -13,6 +14,13 @@ class Container(object):
 
     def __init__(self, **kwargs):
         self.__dict__.update(**kwargs)
+
+
+# it is useful for deployment scripts to handle cli arguments
+# the following reduces the boilerplate
+argparser = argparse.ArgumentParser()
+argparser.add_argument("target", help="deployment target: `local` or `remote`.", choices=["local", "remote"])
+argparser.add_argument("-u", "--unsafe", help="omit security questions", action="store_true")
 
 
 def render_template(tmpl_path, context, target_path=None):
