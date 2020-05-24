@@ -232,6 +232,18 @@ class StateConnection(object):
             os.system(cmd)
 
 
+def warn_user(appname, target, unsafe_flag):
+    print(f"\n  You are running the deployment script for {bright(appname)} with target {bright(target)},\n"
+          f"\n  {yellow('Caution:')} All exisitng user data of the app and any other remote changes\n"
+          f"  will pobably be be replaced by predefined values and fixtures.\n\n")
+
+    if not unsafe_flag:
+        res = input("Continue (N/y)? ")
+        if res.lower() != "y":
+            print(bred("Aborted."))
+            exit()
+
+
 def get_dir_of_this_file():
     """
     Assumes that this function is called from a script. Return the path of that script (excluding the script itself).
