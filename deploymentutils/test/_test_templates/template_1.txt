@@ -1,0 +1,6 @@
+This file is a template. This means some values will be inserted later from the context-dict.
+
+Note: {{context.warning}}
+
+{{context.abc}}
+{{context.xyz}}
