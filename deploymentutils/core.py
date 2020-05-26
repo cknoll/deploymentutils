@@ -148,11 +148,11 @@ class StateConnection(object):
                     f"`warn=True` and inspect `result.stderr` to get more information.\n" \
                     f"Original exception follows:\n"
 
-                raise ValueError(msg+str(ex))
+                raise ValueError(msg)
             else:
                 self.last_result = res
                 if smart_error_handling and res.exited != 0:
-                    msg = f"The command {cmd} failed with code {res.exited}. This is res.stderr:\n\n" \
+                    msg = f"The command `{cmd}` failed with code {res.exited}. This is res.stderr:\n\n" \
                           f"{res.stderr}\n\n" \
                           "You can also investigate c.last_result and c.last_command"
                     raise ValueError(msg)
@@ -181,7 +181,7 @@ class StateConnection(object):
                 res = self._c.run(cmd, hide=hide, warn=warn)
             else:
                 print(dim(f"> Omitting command `{cmd}`\n> due to target_spec: {target_spec}."))
-                res = None
+                res = Container(exited=0)
         else:
             # TODO : handle warn flag
             if target_spec in ("local", "both"):
@@ -189,14 +189,14 @@ class StateConnection(object):
                 os.chdir(execution_dir)
 
                 cmd_as_list = cmd.split(" ")
-                try:
-                    res0 = subprocess.check_output(cmd_as_list).decode("utf8")
-                except subprocess.CalledProcessError as err:
-                    res = Container(stdout="", stderr=err.stderr, exited=err.returncode)
-                else:
-                    res = Container(stdout=res0, stderr="", exited=0)
-                finally:
-                    os.chdir(orig_dir)
+                # expect a CompletedProcess Instance
+                res = subprocess.run(cmd_as_list, capture_output=True)
+                res.exited = res.returncode
+                res.stdout = res.stdout.decode("utf8")
+                res.stderr = res.stderr.decode("utf8")
+                os.chdir(orig_dir)
+                if res.stdout:
+                    print(res.stdout)
 
             else:
                 print(dim(f"> Omitting command `{cmd}` in dir {execution_dir}\n> due to target_spec: {target_spec}."))

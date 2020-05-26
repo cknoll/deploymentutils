@@ -94,6 +94,12 @@ class TC1(unittest.TestCase):
         expected_result = os.getcwd()
         self.assertEqual(c.last_result.stdout.strip(), expected_result)
 
+        with self.assertRaises(ValueError) as cm:
+            # provoke nonzero exit code
+            c.run("ls foobar_nonexistent", target_spec="local")
+
+        self.assertTrue("foobar_nonexistent" in cm.exception.args[0])
+
 
 if __name__ == "__main__":
     if __name__ == '__main__':
