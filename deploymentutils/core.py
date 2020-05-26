@@ -21,6 +21,7 @@ class Container(object):
 argparser = argparse.ArgumentParser()
 argparser.add_argument("target", help="deployment target: `local` or `remote`.", choices=["local", "remote"])
 argparser.add_argument("-u", "--unsafe", help="omit security questions", action="store_true")
+argparser.add_argument("-i", "--initial", help="flag for initial deployment", action="store_true")
 
 
 def render_template(tmpl_path, context, target_path=None):
@@ -72,7 +73,10 @@ class StateConnection(object):
 
         assert target in ("remote", "local")
         self.target = target
-        self._c = {"remote": Connection(remote, user), "local": None}[target]
+        if target == "remote":
+            self._c = Connection(remote, user),
+        else:
+            self._c = None
 
     def chdir(self, path, target_spec="both"):
         """
@@ -146,15 +150,15 @@ class StateConnection(object):
 
                 raise ValueError(msg+str(ex))
             else:
+                self.last_result = res
                 if smart_error_handling and res.exited != 0:
-                    self.last_result = res
                     msg = f"The command {cmd} failed with code {res.exited}. This is res.stderr:\n\n" \
                           f"{res.stderr}\n\n" \
                           "You can also investigate c.last_result and c.last_command"
                     raise ValueError(msg)
         else:
             print("->:", cmd)
-            res = None
+            res = Container(exited=0)
         return res
 
     def run_target_command(self, cmd, execution_dir, hide, warn, target_spec):
@@ -197,11 +201,10 @@ class StateConnection(object):
             else:
                 print(dim(f"> Omitting command `{cmd}` in dir {execution_dir}\n> due to target_spec: {target_spec}."))
                 res = Container(exited=0)
-                res = None
 
         return res
 
-    def rsync_upload(self, source, dest, target_spec, filters="", printonly=False):
+    def rsync_upload(self, source, dest, target_spec, filters="", printonly=False, tol_nonzero_exit=False):
         """
         Perform the appropriate rsync command (or not), depending on self.target and target_spec.
 
@@ -210,6 +213,7 @@ class StateConnection(object):
         :param target_spec:
         :param filters:
         :param printonly:
+        :param tol_nonzero_exit:    boolean; tolerate nonzero exit code
         :return:
         """
 
@@ -229,7 +233,11 @@ class StateConnection(object):
             print(dim(f"> Omitting rsync command `{cmd}`\n> due to target_spec: {target_spec}."))
         else:
             # TODO: instead of locally calling rsync, find a more elegant (plattform-independent) way to do this
-            os.system(cmd)
+            exitcode = os.system(cmd)
+
+            if not tol_nonzero_exit and exitcode != 0:
+                msg = "rsync failed. See error message above."
+                raise ValueError(msg)
 
 
 def warn_user(appname, target, unsafe_flag):

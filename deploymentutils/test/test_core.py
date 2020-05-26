@@ -83,6 +83,17 @@ class TC1(unittest.TestCase):
 
         self.assertTrue("usage:" in err.getvalue().strip())
 
+    def test_run_command0(self):
+        c = StateConnection(remote=None, user=None, target="local")
+
+        self.assertRaises(FileNotFoundError, c.run, "nonsense_command_xyz", target_spec="local")
+
+        res = c.run("pwd", target_spec="local")
+        self.assertEqual(res.exited, 0)
+
+        expected_result = os.getcwd()
+        self.assertEqual(c.last_result.stdout.strip(), expected_result)
+
 
 if __name__ == "__main__":
     if __name__ == '__main__':
