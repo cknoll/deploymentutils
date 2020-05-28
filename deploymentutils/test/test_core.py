@@ -5,7 +5,8 @@ from contextlib import contextmanager
 import sys
 from io import StringIO
 
-from deploymentutils import render_template, StateConnection, get_dir_of_this_file, argparser
+import deploymentutils as du
+from deploymentutils import render_template, StateConnection, get_dir_of_this_file
 from ipydex import IPS
 
 """
@@ -70,18 +71,21 @@ class TC1(unittest.TestCase):
 
     def test_argparser(self):
 
-        args = argparser.parse_args(["-u", "local"])
+        args = du.parse_args(["-u", "local"])
 
         self.assertEqual(args.target, "local")
         self.assertEqual(args.unsafe, True)
 
-        args = argparser.parse_args(["local"])
+        args = du.parse_args(["local"])
         self.assertEqual(args.unsafe, False)
 
         with captured_output() as (out, err):
-            self.assertRaises(SystemExit, argparser.parse_args, [])
-
+            self.assertRaises(SystemExit, du.parse_args, [])
         self.assertTrue("usage:" in err.getvalue().strip())
+
+        with self.assertRaises(ValueError) as cm:
+            du.parse_args(["-l", "remote"])
+        self.assertTrue("incompatible options" in cm.exception.args[0])
 
     def test_run_command0(self):
         c = StateConnection(remote=None, user=None, target="local")

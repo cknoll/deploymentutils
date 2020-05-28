@@ -4,10 +4,8 @@ import subprocess
 import argparse
 from fabric import Connection
 from invoke import UnexpectedExit
-from jinja2 import Environment, PackageLoader, FileSystemLoader
+from jinja2 import Environment, FileSystemLoader
 from colorama import Style, Fore
-
-from ipydex import IPS
 
 
 class Container(object):
@@ -20,8 +18,17 @@ class Container(object):
 # the following reduces the boilerplate
 argparser = argparse.ArgumentParser()
 argparser.add_argument("target", help="deployment target: `local` or `remote`.", choices=["local", "remote"])
-argparser.add_argument("-u", "--unsafe", help="omit security questions", action="store_true")
+argparser.add_argument("-u", "--unsafe", help="omit security confirmation", action="store_true")
 argparser.add_argument("-i", "--initial", help="flag for initial deployment", action="store_true")
+argparser.add_argument("-l", "--symlink", help="use symlinking instead of copying (local deployment only)",
+                       action="store_true")
+
+
+def parse_args(*args, **kwargs):
+    args = argparser.parse_args(*args, **kwargs)
+    if args.target != "local" and args.symlink:
+        raise ValueError(f"incompatible options: target: {args.target} and --symlink: True")
+    return args
 
 
 def render_template(tmpl_path, context, target_path=None):
