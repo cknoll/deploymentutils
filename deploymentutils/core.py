@@ -123,7 +123,7 @@ class StateConnection(object):
 
         :param cmd:
         :param use_dir:
-        :param hide:            see docs of invoke
+        :param hide:            see docs of invoke {"out", "err", True, False}
         :param warn:            see docs of invoke and handling of "smart" bewlow
         :param printonly:       flag for debugging
         :param target_spec:     str \in {"remote", "local", "both"}; default: "remote"
@@ -195,14 +195,17 @@ class StateConnection(object):
                 orig_dir = os.getcwd()
                 os.chdir(execution_dir)
 
-                cmd_as_list = cmd.split(" ")
+                if not isinstance(cmd, list):
+                    cmd_as_list = cmd.split(" ")
+                else:
+                    cmd_as_list = cmd
                 # expect a CompletedProcess Instance
                 res = subprocess.run(cmd_as_list, capture_output=True)
                 res.exited = res.returncode
                 res.stdout = res.stdout.decode("utf8")
                 res.stderr = res.stderr.decode("utf8")
                 os.chdir(orig_dir)
-                if res.stdout:
+                if res.stdout and not hide not in ("True", "out"):
                     print(res.stdout)
 
             else:
@@ -268,7 +271,9 @@ def get_dir_of_this_file():
 
 
 def dim(txt):
-    return f"{Style.DIM}{txt}{Style.RESET_ALL}"
+    return f"{Fore.LIGHTBLACK_EX}{txt}{Fore.RESET}"
+    # original solution (seems not to work everywhere)
+    # return f"{Style.DIM}{txt}{Style.RESET_ALL}"
 
 
 def bright(txt):

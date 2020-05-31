@@ -104,6 +104,10 @@ class TC1(unittest.TestCase):
 
         self.assertTrue("foobar_nonexistent" in cm.exception.args[0])
 
+        c.run("python --version", target_spec="local", hide=True)
+        res = c.run(['python3',  '-c', 'print("123-test-789")'], target_spec="local", hide=True)
+        self.assertTrue("123-test-789" in res.stdout)
+
 
 if __name__ == "__main__":
     if __name__ == '__main__':
