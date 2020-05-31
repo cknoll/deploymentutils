@@ -248,9 +248,10 @@ class StateConnection(object):
 
 
 def warn_user(appname, target, unsafe_flag):
+
     print(f"\n  You are running the deployment script for {bright(appname)} with target {bright(target)},\n"
-          f"\n  {yellow('Caution:')} All exisitng user data of the app and any other remote changes\n"
-          f"  will pobably be be replaced by predefined values and fixtures.\n\n")
+          f"\n  {yellow('Caution:')} All exisitng user data of the app and any other changes in the\n"
+          f"  deployment directory will probably be be replaced by predefined data and fixtures.\n\n")
 
     if not unsafe_flag:
         res = input("Continue (N/y)? ")
