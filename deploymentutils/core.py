@@ -81,7 +81,7 @@ class StateConnection(object):
         assert target in ("remote", "local")
         self.target = target
         if target == "remote":
-            self._c = Connection(remote, user),
+            self._c = Connection(remote, user)
         else:
             self._c = None
 

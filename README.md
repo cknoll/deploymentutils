@@ -69,3 +69,9 @@ The scripts marked with [*] make use of this module.
 ## Status
 
 Still under development and not comprehensively tested.
+
+
+## Known Issues
+
+- If a command started by `c.run("some_command")` is reading input, then the calling python process waits 'forever', i.e. until interrupted manually.
+    - possible solution fragment: https://stackoverflow.com/questions/35751295/python-subprocess-check-to-see-if-the-executed-script-is-asking-for-user-input   
