@@ -205,7 +205,7 @@ class StateConnection(object):
                 res.stdout = res.stdout.decode("utf8")
                 res.stderr = res.stderr.decode("utf8")
                 os.chdir(orig_dir)
-                if res.stdout and not hide not in ("True", "out"):
+                if res.stdout and hide not in (True, "out"):
                     print(res.stdout)
 
             else:

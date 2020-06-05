@@ -104,8 +104,18 @@ class TC1(unittest.TestCase):
 
         self.assertTrue("foobar_nonexistent" in cm.exception.args[0])
 
-        c.run("python --version", target_spec="local", hide=True)
-        res = c.run(['python3',  '-c', 'print("123-test-789")'], target_spec="local", hide=True)
+        with captured_output() as (out, err):
+            c.run("python --version", target_spec="local", hide=False)
+        self.assertTrue("Python" in out.getvalue().strip())
+
+    def test_run_command1(self):
+        c = StateConnection(remote=None, user=None, target="local")
+
+        # test if hide=True works
+        with captured_output() as (out, err):
+            res = c.run(['python3',  '-c', 'print("123-test-789")'], target_spec="local", hide=True)
+
+        self.assertEqual(out.getvalue().strip(), "")
         self.assertTrue("123-test-789" in res.stdout)
 
 
