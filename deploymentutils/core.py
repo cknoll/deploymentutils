@@ -85,6 +85,21 @@ class StateConnection(object):
         else:
             self._c = None
 
+    def cprint(self, txt, target_spec="both"):
+        """
+        Colored print-function. Color (bright or gray) depends on `target_spec` and `self.target`.
+
+        :param txt:           the string to print
+        :param target_spec:   one of `both` (default), `remote` or `local`
+        :return:
+        """
+
+        if target_spec in  (self.target, "both"):
+            print(bright(txt))
+        else:
+            msg = f"Omit: (target_spec is not {self.target} "
+            print(dim(f"{msg}{txt}"))
+
     def chdir(self, path, target_spec="both"):
         """
         The following works on uberspace:
