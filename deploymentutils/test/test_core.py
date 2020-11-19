@@ -1,5 +1,6 @@
 import unittest
 import os
+import json
 import tempfile
 from contextlib import contextmanager
 import sys
@@ -7,6 +8,8 @@ from io import StringIO
 
 import deploymentutils as du
 from deploymentutils import render_template, StateConnection, get_dir_of_this_file
+
+# noinspection PyUnresolvedReferences
 from ipydex import IPS
 
 """
@@ -14,6 +17,18 @@ These tests can only cover a fraction of the actual features, because the tests 
 """
 
 TEMPLATEDIR = "_test_templates"
+
+# remote_secrets.txt is obviously not included in this package
+try:
+    with open(f"{get_dir_of_this_file()}/../../../remote_secrets.json") as fp:
+        remote_secrets = json.load(fp)
+
+    remote_server = remote_secrets["remote_server"]
+    remote_user = remote_secrets["remote_user"]
+
+except (FileNotFoundError, KeyError):
+    remote_server = None
+    remote_user = None
 
 
 @contextmanager
@@ -117,6 +132,17 @@ class TC1(unittest.TestCase):
 
         self.assertEqual(out.getvalue().strip(), "")
         self.assertTrue("123-test-789" in res.stdout)
+
+
+@unittest.skipUnless(remote_server is not None, "no remote server specified")
+class TC2(unittest.TestCase):
+    def setUp(self):
+        self.c = du.StateConnection(remote_server, user=remote_user, target="remote")
+        pass
+
+    def test_remote1(self):
+        res = self.c.run("hostname")
+        self.assertEqual(res.exited, 0)
 
 
 if __name__ == "__main__":

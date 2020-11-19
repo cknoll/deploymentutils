@@ -1,8 +1,11 @@
 import os
+from typing import List, Union
+from typing_extensions import Literal  # for py3.7 support
 import inspect
 import subprocess
 import argparse
 from fabric import Connection
+from paramiko.ssh_exception import PasswordRequiredException
 from invoke import UnexpectedExit
 from jinja2 import Environment, FileSystemLoader
 from colorama import Style, Fore
@@ -12,6 +15,12 @@ class Container(object):
 
     def __init__(self, **kwargs):
         self.__dict__.update(**kwargs)
+
+
+class EContainer(Container):
+    def __init__(self, **kwargs):
+        self.exited = None
+        super().__init__(**kwargs)
 
 
 # it is useful for deployment scripts to handle cli arguments
@@ -82,6 +91,9 @@ class StateConnection(object):
         self.target = target
         if target == "remote":
             self._c = Connection(remote, user)
+            res = self.run("echo test")
+            if res.exited != 0:
+                raise SystemExit
         else:
             self._c = None
 
@@ -171,6 +183,10 @@ class StateConnection(object):
                     f"Original exception follows:\n"
 
                 raise ValueError(msg)
+            except PasswordRequiredException as ex:
+                print(bred("Could not connect via ssh. Ensure that ssh-agent is activated."))
+                print(dim("hint: use something like `eval $(ssh-agent); ssh-add -t 1m`\n"))
+                res = EContainer(exited=1, exception=ex)
             else:
                 self.last_result = res
                 if smart_error_handling and res.exited != 0:
