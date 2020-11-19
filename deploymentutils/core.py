@@ -92,7 +92,7 @@ class StateConnection(object):
         self.target = target
         if target == "remote":
             self._c = Connection(remote, user)
-            res = self.run("echo test")
+            res = self.run('echo "Connection successful!"', hide=True)
             if res.exited != 0:
                 raise SystemExit
         else:
@@ -183,6 +183,8 @@ class StateConnection(object):
         else:
             full_command_list = [cmd.split(" ")]
 
+        cmd_txt = " ".join(full_command_list[-1])
+
         if use_dir and self.dir is not None:
             full_command_list.insert(0, ["cd",  self.dir])
 
@@ -200,9 +202,14 @@ class StateConnection(object):
         else:
             smart_error_handling = False
 
+        if not hide:
+            print(dim("-> "), cmd_txt)
+
         if not printonly:
             # noinspection PyUnusedLocal
             try:
+                if not hide:
+                    print(dim("<- "), end="")
                 res = self.run_target_command(full_command_list, hide=hide, warn=warn, target_spec=target_spec)
             except UnexpectedExit as ex:
                 # ! This message should be displayed
@@ -223,7 +230,7 @@ class StateConnection(object):
                           "You can also investigate c.last_result and c.last_command"
                     raise ValueError(msg)
         else:
-            print("->:", cmd)
+            # printonly mode
             res = EContainer(exited=0)
         return res
 
