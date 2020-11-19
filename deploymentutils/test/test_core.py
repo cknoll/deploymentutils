@@ -178,6 +178,10 @@ class TC2(unittest.TestCase):
         res = self.c.run("python --version")
         self.assertTrue(res.stderr.startswith("Python 2.7"))
 
+        self.c.activate_venv("~/tmp/test_env/bin/activate")
+        res = self.c.run("hostname", target_spec="local")
+        self.assertTrue(res.command_omitted)
+
 
 if __name__ == "__main__":
     if __name__ == '__main__':

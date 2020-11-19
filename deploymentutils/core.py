@@ -84,6 +84,7 @@ class StateConnection(object):
     def __init__(self, remote, user, target="remote"):
         self.dir = None
         self.venv_path = None
+        self.venv_target = None
         self.last_result = None
         self.last_command = None
         self.remote = remote
@@ -115,21 +116,25 @@ class StateConnection(object):
             msg = f"Omit: (target_spec is not {self.target} "
             print(dim(f"{msg}{txt}"))
 
-    def activate_venv(self, venv_path):
+    def activate_venv(self, venv_path, venv_target: Literal["remote", "both"] = "remote"):
         """
         Store the virtual environment which should be activated for all commands (until deactivation).
         Also execute a test command.
 
         :param venv_path:    path to the activate script
+        :param venv_target:  target platform
         """
 
         self.venv_path = venv_path
+        self.venv_target = venv_target
 
+        # !! this assumes to run remote
         return self.run('python -c "import sys; print(sys.path)"')
 
     def deactivate_venv(self):
 
         self.venv_path = None
+        self.venv_target = None
 
     def chdir(self, path, target_spec: Literal["remote", "local", "both"] = "both", tolerate_error=False):
         """
@@ -215,7 +220,12 @@ class StateConnection(object):
         if use_dir and self.dir is not None:
             full_command_list.insert(0, ["cd",  self.dir])
 
-        if use_venv and self.venv_path is not None:
+        assert target_spec in ("remote", "local", "both")
+        assert self.venv_target in (None, "remote", "both")
+
+        venv_target_condition = self.venv_target == "both" or (target_spec != "local" and self.venv_target is not None)
+
+        if use_venv and self.venv_path is not None and venv_target_condition:
             full_command_list.insert(0, ["source",  self.venv_path])
 
         self.last_command = full_command_list
@@ -288,8 +298,9 @@ class StateConnection(object):
                 res = self._c.run(full_command_txt, hide=hide, warn=warn)
             else:
                 print(omit_message)
-                res = EContainer(exited=0)
+                res = EContainer(exited=0, command_omitted=True)
         else:
+            # -> self.target != "remote"
             # TODO : handle warn flag
             if target_spec in ("local", "both"):
                 orig_dir = os.getcwd()
@@ -308,8 +319,9 @@ class StateConnection(object):
                     print(res.stdout)
 
             else:
+                # -> self.target != "remote" but target_spec == "remote"
                 print(omit_message)
-                res = EContainer(exited=0)
+                res = EContainer(exited=0, command_omitted=True)
 
         return res
 
