@@ -82,6 +82,7 @@ class StateConnection(object):
 
     def __init__(self, remote, user, target="remote"):
         self.dir = None
+        self.venv_path = None
         self.last_result = None
         self.last_command = None
         self.remote = remote
@@ -106,13 +107,29 @@ class StateConnection(object):
         :return:
         """
 
-        if target_spec in  (self.target, "both"):
+        if target_spec in (self.target, "both"):
             print(bright(txt))
         else:
             msg = f"Omit: (target_spec is not {self.target} "
             print(dim(f"{msg}{txt}"))
 
-    def chdir(self, path, target_spec="both"):
+    def activate_venv(self, venv_path):
+        """
+        Store the virtual environment which should be activated for all commands (until deactivation).
+        Also execute a test command.
+
+        :param venv_path:    path to the activate script
+        """
+
+        self.venv_path = venv_path
+
+        return self.run('python -c "import sys; print(sys.path)"')
+
+    def deactivate_venv(self):
+
+        self.venv_path = None
+
+    def chdir(self, path, target_spec: Literal["remote", "local", "both"] = "both"):
         """
         The following works on uberspace:
 
@@ -145,24 +162,34 @@ class StateConnection(object):
 
         return res
 
-    def run(self, cmd, use_dir=True, hide=False, warn="smart", printonly=False, target_spec="remote"):
+    def run(self, cmd, use_dir: bool = True, hide: bool = False, warn: Union[bool, str] = "smart",
+            printonly=False, target_spec: Literal["remote", "local", "both"] = "remote",
+            use_venv: bool = True):
         """
 
-        :param cmd:
-        :param use_dir:
+        :param cmd:             the command to execute, preferably as a list like it is expected by subprocess
+        :param use_dir:         boolean flag whether or not to use self.dir
+        :param use_venv:        boolean flag whether or not to use self.venv_path
         :param hide:            see docs of invoke {"out", "err", True, False}
         :param warn:            see docs of invoke and handling of "smart" bewlow
         :param printonly:       flag for debugging
-        :param target_spec:     str \in {"remote", "local", "both"}; default: "remote"
+        :param target_spec:     str; default: "remote"
         :return:
         """
 
-        if use_dir and self.dir is not None:
-            execution_dir = self.dir
+        # full_command_list will be a list of lists
+        if isinstance(cmd, list):
+            full_command_list = [cmd]
         else:
-            execution_dir = "./"
+            full_command_list = [cmd.split(" ")]
 
-        self.last_command = f"cd {execution_dir}; {cmd}"
+        if use_dir and self.dir is not None:
+            full_command_list.insert(0, ["cd",  self.dir])
+
+        if use_venv and self.venv_path is not None:
+            full_command_list.insert(0, ["source",  self.venv_path])
+
+        self.last_command = full_command_list
 
         if warn == "smart":
             # -> get a result object (which would not be the case for warn=False)
@@ -174,8 +201,9 @@ class StateConnection(object):
             smart_error_handling = False
 
         if not printonly:
+            # noinspection PyUnusedLocal
             try:
-                res = self.run_target_command(cmd, execution_dir, hide=hide, warn=warn, target_spec=target_spec)
+                res = self.run_target_command(full_command_list, hide=hide, warn=warn, target_spec=target_spec)
             except UnexpectedExit as ex:
                 # ! This message should be displayed
                 msg = f"The command {cmd} failed. You can run it again with `warn=smart` (recommendend) or" \
@@ -196,52 +224,58 @@ class StateConnection(object):
                     raise ValueError(msg)
         else:
             print("->:", cmd)
-            res = Container(exited=0)
+            res = EContainer(exited=0)
         return res
 
-    def run_target_command(self, cmd, execution_dir, hide, warn, target_spec):
+    def run_target_command(self, full_command_lists: List[list], hide: bool, warn: bool, target_spec: str) ->\
+                                                                    Union[EContainer, subprocess.CompletedProcess]:
         """
         Actually run the command (or not), depending on self.target and target_spec.
 
-        :param cmd:
-        :param execution_dir:
+        :param full_command_lists:  nested list of commands like: [["cd", "/path"], ["echo", "$(pwd)"]]
         :param hide:
         :param warn:
         :param target_spec:
         :return:
         """
 
+        assert isinstance(full_command_lists, list) and isinstance(full_command_lists[0], list)
+
+        full_command_txt = "; ".join([" ".join(cmd_list) for cmd_list in full_command_lists])
+
+        # this is only for status messages
+        last_command = " ".join(full_command_lists[-1])
+        omit_message = dim(f"> Omitting command `{last_command}`\n> due to target_spec: {target_spec}.")
+
         assert self.target in ("local", "remote"), f"Invald target: {self.target}"
         if self.target == "remote":
-            cmd = f"cd {execution_dir}; {cmd}"
 
             if target_spec in ("remote", "both"):
-                res = self._c.run(cmd, hide=hide, warn=warn)
+                res = self._c.run(full_command_txt, hide=hide, warn=warn)
             else:
-                print(dim(f"> Omitting command `{cmd}`\n> due to target_spec: {target_spec}."))
-                res = Container(exited=0)
+                print(omit_message)
+                res = EContainer(exited=0)
         else:
             # TODO : handle warn flag
             if target_spec in ("local", "both"):
                 orig_dir = os.getcwd()
-                os.chdir(execution_dir)
 
-                if not isinstance(cmd, list):
-                    cmd_as_list = cmd.split(" ")
-                else:
-                    cmd_as_list = cmd
-                # expect a CompletedProcess Instance
-                res = subprocess.run(cmd_as_list, capture_output=True)
-                res.exited = res.returncode
-                res.stdout = res.stdout.decode("utf8")
-                res.stderr = res.stderr.decode("utf8")
+                res = None
+                # this loop only saves the result of the last command in res, but that is OK
+                for cmd_list in full_command_lists:
+                    # expect a CompletedProcess Instance
+                    res = subprocess.run(cmd_list, capture_output=True)
+                    res.exited = res.returncode
+                    res.stdout = res.stdout.decode("utf8")
+                    res.stderr = res.stderr.decode("utf8")
+
                 os.chdir(orig_dir)
-                if res.stdout and hide not in (True, "out"):
+                if res is not None and res.stdout and hide not in (True, "out"):
                     print(res.stdout)
 
             else:
-                print(dim(f"> Omitting command `{cmd}` in dir {execution_dir}\n> due to target_spec: {target_spec}."))
-                res = Container(exited=0)
+                print(omit_message)
+                res = EContainer(exited=0)
 
         return res
 
