@@ -9,6 +9,7 @@ from paramiko.ssh_exception import PasswordRequiredException
 from invoke import UnexpectedExit
 from jinja2 import Environment, FileSystemLoader
 from colorama import Style, Fore
+from ipydex import IPS
 
 
 class Container(object):
@@ -94,7 +95,8 @@ class StateConnection(object):
             self._c = Connection(remote, user)
             res = self.run('echo "Connection successful!"', hide=True)
             if res.exited != 0:
-                raise SystemExit
+                msg = "Could not connect via ssh. Ensure that ssh-agent is activated."
+                raise SystemExit(msg)
         else:
             self._c = None
 
@@ -170,6 +172,7 @@ class StateConnection(object):
 
         cmd = "pwd"
         res = self.run(cmd, hide=True, warn=True, target_spec=target_spec)
+        pwd_txt = res.stdout.strip()
 
         if res.exited != 0:
             print(bred(f"Could not change directory. Error message: {res.stderr}"))
@@ -177,9 +180,10 @@ class StateConnection(object):
 
         # assure they have the last component in common
         # the rest might differ due to symlinks and relative paths
-        elif not res.stdout.strip().endswith(os.path.split(path)[1]):
-            if not tolerate_error:
+        elif not pwd_txt.endswith(os.path.split(path)[1]):
+            if not tolerate_error and not path.startswith("~") and not path.startswith("$"):
                 print(bred(f"Could not change directory. `pwd`-result: {res.stdout}"))
+                IPS(print_tb=-1)
             self.dir = old_path
             res = EContainer(exited=1, old_res=res)
 

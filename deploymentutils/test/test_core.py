@@ -18,6 +18,9 @@ These tests can only cover a fraction of the actual features, because the tests 
 
 TEMPLATEDIR = "_test_templates"
 
+# because uberspace offers many pip_commands:
+pipc = "pip3.8"
+
 # remote_secrets.txt is obviously not included in this package
 try:
     with open(f"{get_dir_of_this_file()}/../../../remote_secrets.json") as fp:
@@ -158,10 +161,22 @@ class TC2(unittest.TestCase):
         self.c.chdir("~/tmp")
         res = self.c.run("rmdir -p abc/xyz")
         self.assertEqual(res.exited, 0)
+        self.c.chdir("~")
 
-    def test_remote2(self):
-        res = self.c.run("hostname")
-        self.assertEqual(res.exited, 0)
+    def test_venv1(self):
+        self.c.chdir("~/tmp")
+        res = self.c.run(f"{pipc} install --user virtualenv")
+        res = self.c.run(f"virtualenv -p python3.8 test_env")
+        self.c.chdir("~")
+        self.c.activate_venv("~/tmp/test_env/bin/activate")
+        res = self.c.run("python --version")
+        self.assertTrue(res.stdout.startswith("Python 3.8"))
+        res = self.c.run("python --version", use_venv=False)
+        self.assertTrue(res.stderr.startswith("Python 2.7"))
+
+        self.c.deactivate_venv()
+        res = self.c.run("python --version")
+        self.assertTrue(res.stderr.startswith("Python 2.7"))
 
 
 if __name__ == "__main__":
