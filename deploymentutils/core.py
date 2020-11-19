@@ -129,7 +129,7 @@ class StateConnection(object):
 
         self.venv_path = None
 
-    def chdir(self, path, target_spec: Literal["remote", "local", "both"] = "both"):
+    def chdir(self, path, target_spec: Literal["remote", "local", "both"] = "both", tolerate_error=False):
         """
         The following works on uberspace:
 
@@ -139,6 +139,7 @@ class StateConnection(object):
 
         :param path:
         :param target_spec:
+        :param tolerate_error:
         :return:
         """
 
@@ -146,19 +147,41 @@ class StateConnection(object):
             self.dir = None
             return
 
-        self.dir = path
+        assert len(path) > 0
+
+        # handle relative paths
+
+        if path[0] not in ("/", "~", "$"):
+            # path is a relative directory
+            if self.dir is None:
+                # this should prevent too hazardous invocations
+                msg = "Relative path cannot be the first path specification"
+                raise ValueError(msg)
+
+            pwd_res = self.run("pwd", hide=True, warn=True, target_spec=target_spec)
+            assert pwd_res.exited == 0
+            abs_path = f"{pwd_res.stdout.strip()}/{path}"
+        else:
+            # !! handle the cases of $RELATIVE_PATH and $UNDEFINED (however, not so important)
+            abs_path = path
+
+        old_path = self.dir
+        self.dir = abs_path
 
         cmd = "pwd"
         res = self.run(cmd, hide=True, warn=True, target_spec=target_spec)
 
         if res.exited != 0:
             print(bred(f"Could not change directory. Error message: {res.stderr}"))
+            self.dir = old_path
 
         # assure they have the last component in common
         # the rest might differ due to symlinks and relative paths
-        assert res.stdout.strip().endswith(os.path.split(path)[1])
-
-        # store the result of pwd in the variable
+        elif not res.stdout.strip().endswith(os.path.split(path)[1]):
+            if not tolerate_error:
+                print(bred(f"Could not change directory. `pwd`-result: {res.stdout}"))
+            self.dir = old_path
+            res = EContainer(exited=1, old_res=res)
 
         return res
 

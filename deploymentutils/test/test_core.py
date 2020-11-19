@@ -143,6 +143,25 @@ class TC2(unittest.TestCase):
     def test_remote1(self):
         res = self.c.run("hostname")
         self.assertEqual(res.exited, 0)
+        self.assertEqual(remote_server, res.stdout.strip())
+        self.c.chdir("~/tmp")
+        res = self.c.run("pwd")
+        self.assertTrue(res.stdout.strip().endswith("/tmp"))
+        res = self.c.run("mkdir -p abc/xyz")
+        self.c.chdir("abc/xyz")
+        res = self.c.run("pwd")
+        self.assertTrue(res.stdout.strip().endswith("/tmp/abc/xyz"))
+
+        # try to access a non-existent directory
+        res = self.c.chdir("ABC_XYZ", tolerate_error=True)
+        self.assertNotEqual(res.exited, 0)
+        self.c.chdir("~/tmp")
+        res = self.c.run("rmdir -p abc/xyz")
+        self.assertEqual(res.exited, 0)
+
+    def test_remote2(self):
+        res = self.c.run("hostname")
+        self.assertEqual(res.exited, 0)
 
 
 if __name__ == "__main__":
