@@ -139,7 +139,9 @@ class TC1(unittest.TestCase):
 
         # noinspection PyPep8Naming
         CONFIG_FNAME = "test_config.ini"
-        config = du.get_nearest_config(CONFIG_FNAME)
+
+        # explicitly passing start_dir seems only necessary in unittests
+        config = du.get_nearest_config(CONFIG_FNAME, start_dir=du.get_dir_of_this_file())
 
         self.assertEqual(config("testvalue1"), "OK")
         self.assertEqual(config("testvalue2"), "Very OK")
@@ -150,14 +152,21 @@ class TC1(unittest.TestCase):
         self.assertEqual(config("testvalue_number", cast=float), 1234.567)
         self.assertEqual(config("testvalue_csv", cast=config.Csv()), ["string1", "string2", "some more words"])
         self.assertEqual(config("testvalue_empty_str"), "")
+        self.assertEqual(config("testvalue6"), "production_option")
+        self.assertEqual(config("testvalue6__DEVMODE"), "development_option")
+
+        config_dev = du.get_nearest_config(CONFIG_FNAME, devmode=True, start_dir=du.get_dir_of_this_file())
+        self.assertEqual(config_dev("testvalue6"), "development_option")
 
         # now make a copy of the config file and place it in a parent dir
 
         target_name = CONFIG_FNAME.replace(".ini", "_XYZ.ini")
-        target_path = os.path.join("..", "..", target_name)
+        target_path = os.path.join(du.get_dir_of_this_file(), "..", "..", target_name)
         self.assertRaises(FileNotFoundError, du.get_nearest_config, fname=target_name)
 
-        shutil.copy2(CONFIG_FNAME, target_path)
+        source_path = os.path.join(du.get_dir_of_this_file(), CONFIG_FNAME)
+
+        shutil.copy2(source_path, target_path)
         self.assertRaises(FileNotFoundError, du.get_nearest_config, fname=target_name, limit=1)
         config2 = du.get_nearest_config(target_name, limit=2)
         self.assertEqual(config2("testvalue1"), "OK")

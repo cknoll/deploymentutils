@@ -383,25 +383,43 @@ def warn_user(appname, target, unsafe_flag, deployment_path):
             exit()
 
 
-def get_dir_of_this_file():
+def get_dir_of_this_file(upcount: int = 1):
     """
     Assumes that this function is called from a script. Return the path of that script (excluding the script itself).
+
+    :param upcount:     specifies how many frames to go back/up
     """
-    return os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe().f_back)))
+
+    frame = inspect.currentframe()
+    for i in range(upcount):
+        frame = frame.f_back
+
+    return os.path.dirname(os.path.abspath(inspect.getfile(frame)))
 
 
-def get_nearest_config(fname: str = "config.env", limit: int = 4):
+def get_nearest_config(fname: str = "config.env", limit: int = 4, devmode: bool = False,
+                       start_dir : Union[str, None] = None):
     """
-    Look for a file `fname` in the current directory and then up the tree (up to `limit`-steps).
+    Look for a file `fname` in the directory of the calling file and then up the tree (up to `limit`-steps).
 
     Advantage over directly using `from decouple import config` the full filename can be defined explicitly.
 
     :param fname:
     :param limit:   how much steps to go up at maximum
+    :param devmode: flag that triggers development mode (default: False). If True variables which end with "__DEVMODE"
+                    will replace variables without such appendix
 
     :return:    config object from decoupl module
     """
     assert fname.endswith(".ini")
+
+    old_dir = os.getcwd()
+
+    if start_dir is None:
+        start_dir = get_dir_of_this_file(upcount=2)
+    else:
+        assert os.path.isdir(start_dir)
+    os.chdir(start_dir)
 
     path_list = [fname]
     for i in range(limit+1):
@@ -410,13 +428,26 @@ def get_nearest_config(fname: str = "config.env", limit: int = 4):
             break
         path_list.insert(0, "..")
     else:
-        msg = f"Could not find {fname} in current directory nor in {limit} parent dir."
+        msg = f"Could not find {fname} in current directory nor in {limit} parent dirs."
         raise FileNotFoundError(msg)
     from decouple import Config, RepositoryIni, Csv
 
     config = Config(RepositoryIni(path))
+
+    if devmode:
+        relevant_dict = config.repository.parser.__dict__["_sections"]["settings"]
+        for key, value in relevant_dict.items():
+            # it seems that keys are converted to lowercase automatically
+            if key.endswith("__devmode"):
+
+                # use the value specified for the development-mode for the actual variable
+                main_key = key.replace("__devmode", "")
+                relevant_dict[main_key] = value
+
     # enable convenient access to Csv parser
     config.Csv = Csv
+
+    os.chdir(old_dir)
     return config
 
 
