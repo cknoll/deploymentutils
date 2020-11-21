@@ -395,7 +395,7 @@ def get_nearest_config(fname: str = "config.env", limit: int = 4):
     Look for a file `fname` in the current directory and then up the tree (up to `limit`-steps).
 
     Advantage over directly using `from decouple import config` the full filename can be defined explicitly.
-     
+
     :param fname:
     :param limit:   how much steps to go up at maximum
 

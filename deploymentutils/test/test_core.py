@@ -6,6 +6,7 @@ import tempfile
 from contextlib import contextmanager
 import sys
 from io import StringIO
+import decouple
 
 import deploymentutils as du
 from deploymentutils import render_template, StateConnection, get_dir_of_this_file
@@ -22,15 +23,12 @@ TEMPLATEDIR = "_test_templates"
 # because uberspace offers many pip_commands:
 pipc = "pip3.8"
 
-# remote_secrets.txt is obviously not included in this package
+# remote_secrets.ini is obviously not included in this package
 try:
-    with open(f"{get_dir_of_this_file()}/../../../remote_secrets.json") as fp:
-        remote_secrets = json.load(fp)
-
-    remote_server = remote_secrets["remote_server"]
-    remote_user = remote_secrets["remote_user"]
-
-except (FileNotFoundError, KeyError):
+    remote_secrets = du.get_nearest_config("remote_secrets.ini")
+    remote_server = remote_secrets("remote_server")
+    remote_user = remote_secrets("remote_user1")
+except (FileNotFoundError, decouple.UndefinedValueError):
     remote_server = None
     remote_user = None
 
@@ -151,6 +149,7 @@ class TC1(unittest.TestCase):
         self.assertEqual(config("testvalue_number"), "1234.567")
         self.assertEqual(config("testvalue_number", cast=float), 1234.567)
         self.assertEqual(config("testvalue_csv", cast=config.Csv()), ["string1", "string2", "some more words"])
+        self.assertEqual(config("testvalue_empty_str"), "")
 
         # now make a copy of the config file and place it in a parent dir
 
