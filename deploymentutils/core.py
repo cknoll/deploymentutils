@@ -21,6 +21,8 @@ class Container(object):
 class EContainer(Container):
     def __init__(self, **kwargs):
         self.exited = None
+        self.stdout = ""
+        self.stderr = ""
         super().__init__(**kwargs)
 
 
@@ -249,12 +251,18 @@ class StateConnection(object):
                     print(dim("<- "), end="")
                 res = self.run_target_command(full_command_list, hide=hide, warn=warn, target_spec=target_spec)
             except UnexpectedExit as ex:
-                # ! This message should be displayed
-                msg = f"The command {cmd} failed. You can run it again with `warn=smart` (recommendend) or" \
-                    f"`warn=True` and inspect `result.stderr` to get more information.\n" \
-                    f"Original exception follows:\n"
 
-                raise ValueError(msg)
+                if warn:
+                    # fabric/invoke raises this error on "normal failure"
+
+                    msg = f"The command {cmd} failed. You can run it again with `warn=smart` (recommendend) or" \
+                        f"`warn=True` and inspect `result.stderr` to get more information.\n" \
+                        f"Original exception follows:\n"
+
+                    raise ValueError(msg)
+                else:
+                    res = EContainer(exited=1, exception=ex)
+
             except PasswordRequiredException as ex:
                 print(bred("Could not connect via ssh. Ensure that ssh-agent is activated."))
                 print(dim("hint: use something like `eval $(ssh-agent); ssh-add -t 1m`\n"))
@@ -380,6 +388,36 @@ def get_dir_of_this_file():
     Assumes that this function is called from a script. Return the path of that script (excluding the script itself).
     """
     return os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe().f_back)))
+
+
+def get_nearest_config(fname: str = "config.env", limit: int = 4):
+    """
+    Look for a file `fname` in the current directory and then up the tree (up to `limit`-steps).
+
+    Advantage over directly using `from decouple import config` the full filename can be defined explicitly.
+     
+    :param fname:
+    :param limit:   how much steps to go up at maximum
+
+    :return:    config object from decoupl module
+    """
+    assert fname.endswith(".ini")
+
+    path_list = [fname]
+    for i in range(limit+1):
+        path = os.path.join(*path_list)
+        if os.path.isfile(path):
+            break
+        path_list.insert(0, "..")
+    else:
+        msg = f"Could not find {fname} in current directory nor in {limit} parent dir."
+        raise FileNotFoundError(msg)
+    from decouple import Config, RepositoryIni, Csv
+
+    config = Config(RepositoryIni(path))
+    # enable convenient access to Csv parser
+    config.Csv = Csv
+    return config
 
 
 def dim(txt):

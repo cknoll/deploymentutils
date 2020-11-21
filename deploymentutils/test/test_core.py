@@ -1,5 +1,6 @@
 import unittest
 import os
+import shutil
 import json
 import tempfile
 from contextlib import contextmanager
@@ -136,6 +137,33 @@ class TC1(unittest.TestCase):
         self.assertEqual(out.getvalue().strip(), "")
         self.assertTrue("123-test-789" in res.stdout)
 
+    def test_get_nearest_config(self):
+
+        # noinspection PyPep8Naming
+        CONFIG_FNAME = "test_config.ini"
+        config = du.get_nearest_config(CONFIG_FNAME)
+
+        self.assertEqual(config("testvalue1"), "OK")
+        self.assertEqual(config("testvalue2"), "Very OK")
+        self.assertEqual(config("testvalue3"), "Robust=OK")
+        self.assertEqual(config("testvalue4"), '"Quoted String"')
+        self.assertEqual(config("testvalue5"), "Spaces are acceptable")
+        self.assertEqual(config("testvalue_number"), "1234.567")
+        self.assertEqual(config("testvalue_number", cast=float), 1234.567)
+        self.assertEqual(config("testvalue_csv", cast=config.Csv()), ["string1", "string2", "some more words"])
+
+        # now make a copy of the config file and place it in a parent dir
+
+        target_name = CONFIG_FNAME.replace(".ini", "_XYZ.ini")
+        target_path = os.path.join("..", "..", target_name)
+        self.assertRaises(FileNotFoundError, du.get_nearest_config, fname=target_name)
+
+        shutil.copy2(CONFIG_FNAME, target_path)
+        self.assertRaises(FileNotFoundError, du.get_nearest_config, fname=target_name, limit=1)
+        config2 = du.get_nearest_config(target_name, limit=2)
+        self.assertEqual(config2("testvalue1"), "OK")
+        os.remove(target_path)
+
 
 @unittest.skipUnless(remote_server is not None, "no remote server specified")
 class TC2(unittest.TestCase):
@@ -181,6 +209,12 @@ class TC2(unittest.TestCase):
         self.c.activate_venv("~/tmp/test_env/bin/activate")
         res = self.c.run("hostname", target_spec="local")
         self.assertTrue(res.command_omitted)
+
+    def test_remote_warn(self):
+
+        # this command returns with nonzero exit code
+        res = self.c.run("pip show nonexistent_XYZ_package", warn=False)
+        self.assertNotEqual(res.exited, 0)
 
 
 if __name__ == "__main__":
