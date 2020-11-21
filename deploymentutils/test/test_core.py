@@ -25,9 +25,9 @@ pipc = "pip3.8"
 
 # remote_secrets.ini is obviously not included in this package
 try:
-    remote_secrets = du.get_nearest_config("remote_secrets.ini")
+    remote_secrets = du.get_nearest_config("remote_secrets.ini", start_dir=du.get_dir_of_this_file())
     remote_server = remote_secrets("remote_server")
-    remote_user = remote_secrets("remote_user1")
+    remote_user = remote_secrets("remote_user")
 except (FileNotFoundError, decouple.UndefinedValueError):
     remote_server = None
     remote_user = None
