@@ -368,6 +368,35 @@ class StateConnection(object):
                 msg = "rsync failed. See error message above."
                 raise ValueError(msg)
 
+    def deploy_this_package(self, pip_command="pip"):
+        """
+        Deploy the current version of this package to the remote host. This is a convenience function,
+        to prevent to publish too much development versions of this packate to pypi or git repo.
+
+
+        :return:     None
+        """
+
+        assert self.target == "remote"
+
+        package_dir = os.path.dirname(get_dir_of_this_file())
+
+        package_name = os.path.split(get_dir_of_this_file())[1]
+
+        package_dir_name = os.path.split(package_dir)[1]
+
+        filters = \
+            f"--exclude='.git/' " \
+            f"--exclude='.idea/' " \
+            f"--exclude='*/__pycache__/*' " \
+            f"--exclude='__pycache__/' "
+
+        self.rsync_upload(package_dir, "~/tmp", filters=filters, target_spec="remote")
+
+        self.run(f"{pip_command} uninstall -y {package_name}")
+
+        self.run(f"{pip_command} install ~/tmp/{package_dir_name}")
+
 
 def warn_user(appname, target, unsafe_flag, deployment_path):
 
@@ -405,9 +434,11 @@ def get_nearest_config(fname: str = "config.env", limit: int = 4, devmode: bool 
     Advantage over directly using `from decouple import config` the full filename can be defined explicitly.
 
     :param fname:
-    :param limit:   how much steps to go up at maximum
-    :param devmode: flag that triggers development mode (default: False). If True variables which end with "__DEVMODE"
-                    will replace variables without such appendix
+    :param limit:       How much steps to go up at maximum
+    :param devmode:     Flag that triggers development mode (default: False).
+                        If True variables which end with "__DEVMODE" will replace variables without such appendix
+
+    :param start_dir:   (optional) start directory
 
     :return:    config object from decoupl module
     """
@@ -445,8 +476,9 @@ def get_nearest_config(fname: str = "config.env", limit: int = 4, devmode: bool 
                 if main_key in relevant_dict:
                     relevant_dict[main_key] = value
 
-    # enable convenient access to Csv parser
+    # enable convenient access to Csv parser and actual path of the file
     config.Csv = Csv
+    config.path = os.path.abspath(path)
 
     os.chdir(old_dir)
     return config

@@ -205,6 +205,9 @@ class TC2(unittest.TestCase):
     def test_venv1(self):
         self.c.chdir("~/tmp")
         res = self.c.run(f"{pipc} install --user virtualenv")
+
+        # delete old env
+        res = self.c.run(f"rm -rf test_env")
         res = self.c.run(f"virtualenv -p python3.8 test_env")
         self.c.chdir("~")
         self.c.activate_venv("~/tmp/test_env/bin/activate")
@@ -226,6 +229,25 @@ class TC2(unittest.TestCase):
         # this command returns with nonzero exit code
         res = self.c.run("pip show nonexistent_XYZ_package", warn=False)
         self.assertNotEqual(res.exited, 0)
+
+    def test_deploy_this_package(self):
+
+        # preparation
+        self.c.chdir("~/tmp")
+        res = self.c.run(f"{pipc} install --user virtualenv")
+        res = self.c.run(f"rm -rf test_env")
+        res = self.c.run(f"virtualenv -p python3.8 test_env")
+        self.c.activate_venv("~/tmp/test_env/bin/activate")
+        res = self.c.run(f'pip install --upgrade pip setuptools', warn=False)
+
+        # this is expexted to fail
+        res = self.c.run(f'pip show deploymentutils', warn=False)
+        self.assertNotEqual(res.exited, 0)
+
+        self.c.deploy_this_package()
+
+        res = self.c.run(f'pip show deploymentutils', warn=False)
+        self.assertEqual(res.exited, 0)
 
 
 if __name__ == "__main__":
