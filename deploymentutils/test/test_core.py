@@ -154,6 +154,9 @@ class TC1(unittest.TestCase):
         self.assertEqual(config("testvalue_empty_str"), "")
         self.assertEqual(config("testvalue6"), "production_option")
         self.assertEqual(config("testvalue6__DEVMODE"), "development_option")
+        self.assertEqual(config("testvalueX__DEVMODE"), "does not exist for production")
+
+        self.assertRaises(decouple.UndefinedValueError, config, "testvalueX")
 
         config_dev = du.get_nearest_config(CONFIG_FNAME, devmode=True, start_dir=du.get_dir_of_this_file())
         self.assertEqual(config_dev("testvalue6"), "development_option")

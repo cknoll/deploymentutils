@@ -440,9 +440,10 @@ def get_nearest_config(fname: str = "config.env", limit: int = 4, devmode: bool 
             # it seems that keys are converted to lowercase automatically
             if key.endswith("__devmode"):
 
-                # use the value specified for the development-mode for the actual variable
+                # use the value specified for the development-mode for the actual variable (if it exists)
                 main_key = key.replace("__devmode", "")
-                relevant_dict[main_key] = value
+                if main_key in relevant_dict:
+                    relevant_dict[main_key] = value
 
     # enable convenient access to Csv parser
     config.Csv = Csv
