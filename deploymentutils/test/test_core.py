@@ -20,15 +20,25 @@ These tests can only cover a fraction of the actual features, because the tests 
 
 TEMPLATEDIR = "_test_templates"
 
+DIR_OF_THIS_FILE = os.path.dirname(os.path.abspath(sys.modules.get(__name__).__file__))
+
+class NoRemote(Exception):
+    pass
+
 # because uberspace offers many pip_commands:
 pipc = "pip3.8"
 
 # remote_secrets.ini is obviously not included in this package
 try:
-    remote_secrets = du.get_nearest_config("remote_secrets.ini", start_dir=du.get_dir_of_this_file())
+
+    if 1 or "--no-remote" in sys.argv:
+        sys.argv.remove("--no-remote")
+        raise NoRemote
+
+    remote_secrets = du.get_nearest_config("remote_secrets.ini", start_dir=DIR_OF_THIS_FILE)
     remote_server = remote_secrets("remote_server")
     remote_user = remote_secrets("remote_user")
-except (FileNotFoundError, decouple.UndefinedValueError):
+except (FileNotFoundError, decouple.UndefinedValueError, NoRemote):
     remote_server = None
     remote_user = None
 
@@ -59,7 +69,7 @@ class TC1(unittest.TestCase):
         self.assertTrue(test_path.endswith(expected_path))
 
     def test_render_remplate(self):
-        test_path = get_dir_of_this_file()
+        test_path = DIR_OF_THIS_FILE
         tmpl_path = os.path.join(test_path, TEMPLATEDIR, "template_1.txt")
 
         # test creation of target file next to the template
@@ -141,7 +151,8 @@ class TC1(unittest.TestCase):
         CONFIG_FNAME = "test_config.ini"
 
         # explicitly passing start_dir seems only necessary in unittests
-        config = du.get_nearest_config(CONFIG_FNAME, start_dir=du.get_dir_of_this_file())
+
+        config = du.get_nearest_config(CONFIG_FNAME, start_dir=DIR_OF_THIS_FILE)
 
         self.assertEqual(config("testvalue1"), "OK")
         self.assertEqual(config("testvalue2"), "Very OK")
@@ -158,20 +169,21 @@ class TC1(unittest.TestCase):
 
         self.assertRaises(decouple.UndefinedValueError, config, "testvalueX")
 
-        config_dev = du.get_nearest_config(CONFIG_FNAME, devmode=True, start_dir=du.get_dir_of_this_file())
+        config_dev = du.get_nearest_config(CONFIG_FNAME, devmode=True, start_dir=DIR_OF_THIS_FILE)
         self.assertEqual(config_dev("testvalue6"), "development_option")
 
         # now make a copy of the config file and place it in a parent dir
 
         target_name = CONFIG_FNAME.replace(".ini", "_XYZ.ini")
-        target_path = os.path.join(du.get_dir_of_this_file(), "..", "..", target_name)
+        target_path = os.path.join(DIR_OF_THIS_FILE, "..", "..", target_name)
         self.assertRaises(FileNotFoundError, du.get_nearest_config, fname=target_name)
 
-        source_path = os.path.join(du.get_dir_of_this_file(), CONFIG_FNAME)
+        source_path = os.path.join(DIR_OF_THIS_FILE, CONFIG_FNAME)
 
         shutil.copy2(source_path, target_path)
-        self.assertRaises(FileNotFoundError, du.get_nearest_config, fname=target_name, limit=1)
-        config2 = du.get_nearest_config(target_name, limit=2)
+        self.assertRaises(FileNotFoundError, du.get_nearest_config, fname=target_name, start_dir=DIR_OF_THIS_FILE, limit=1)
+
+        config2 = du.get_nearest_config(target_name, start_dir=DIR_OF_THIS_FILE, limit=2)
         self.assertEqual(config2("testvalue1"), "OK")
         os.remove(target_path)
 
