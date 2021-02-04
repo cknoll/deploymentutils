@@ -1,4 +1,5 @@
 [![Build Status](https://cloud.drone.io/api/badges/cknoll/deploymentutils/status.svg)](https://cloud.drone.io/cknoll/deploymentutils)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 
 # deploymentutils

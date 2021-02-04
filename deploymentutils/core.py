@@ -13,7 +13,6 @@ from ipydex import IPS
 
 
 class Container(object):
-
     def __init__(self, **kwargs):
         self.__dict__.update(**kwargs)
 
@@ -32,8 +31,9 @@ argparser = argparse.ArgumentParser()
 argparser.add_argument("target", help="deployment target: `local` or `remote`.", choices=["local", "remote"])
 argparser.add_argument("-u", "--unsafe", help="omit security confirmation", action="store_true")
 argparser.add_argument("-i", "--initial", help="flag for initial deployment", action="store_true")
-argparser.add_argument("-l", "--symlink", help="use symlinking instead of copying (local deployment only)",
-                       action="store_true")
+argparser.add_argument(
+    "-l", "--symlink", help="use symlinking instead of copying (local deployment only)", action="store_true"
+)
 
 
 def parse_args(*args, **kwargs):
@@ -197,9 +197,16 @@ class StateConnection(object):
 
         return res
 
-    def run(self, cmd, use_dir: bool = True, hide: bool = False, warn: Union[bool, str] = "smart",
-            printonly=False, target_spec: Literal["remote", "local", "both"] = "remote",
-            use_venv: bool = True):
+    def run(
+        self,
+        cmd,
+        use_dir: bool = True,
+        hide: bool = False,
+        warn: Union[bool, str] = "smart",
+        printonly=False,
+        target_spec: Literal["remote", "local", "both"] = "remote",
+        use_venv: bool = True,
+    ):
         """
 
         :param cmd:             the command to execute, preferably as a list like it is expected by subprocess
@@ -223,7 +230,7 @@ class StateConnection(object):
         self.cwd = None  # reset possible residuals from last call
         if use_dir and self.dir is not None:
             if self.target == "remote":
-                full_command_list.insert(0, ["cd",  self.dir])
+                full_command_list.insert(0, ["cd", self.dir])
             else:
                 self.cwd = self.dir
 
@@ -233,7 +240,7 @@ class StateConnection(object):
         venv_target_condition = self.venv_target == "both" or (target_spec != "local" and self.venv_target is not None)
 
         if use_venv and self.venv_path is not None and venv_target_condition:
-            full_command_list.insert(0, ["source",  self.venv_path])
+            full_command_list.insert(0, ["source", self.venv_path])
 
         self.last_command = full_command_list
 
@@ -260,9 +267,11 @@ class StateConnection(object):
                 if warn:
                     # fabric/invoke raises this error on "normal failure"
 
-                    msg = f"The command {cmd} failed. You can run it again with `warn=smart` (recommendend) or" \
-                        f"`warn=True` and inspect `result.stderr` to get more information.\n" \
+                    msg = (
+                        f"The command {cmd} failed. You can run it again with `warn=smart` (recommendend) or"
+                        f"`warn=True` and inspect `result.stderr` to get more information.\n"
                         f"Original exception follows:\n"
+                    )
 
                     raise ValueError(msg)
                 else:
@@ -275,9 +284,11 @@ class StateConnection(object):
             else:
                 self.last_result = res
                 if smart_error_handling and res.exited != 0:
-                    msg = f"The command `{cmd}` failed with code {res.exited}. This is res.stderr:\n\n" \
-                          f"{res.stderr}\n\n" \
-                          "You can also investigate c.last_result and c.last_command"
+                    msg = (
+                        f"The command `{cmd}` failed with code {res.exited}. This is res.stderr:\n\n"
+                        f"{res.stderr}\n\n"
+                        "You can also investigate c.last_result and c.last_command"
+                    )
                     raise ValueError(msg)
         else:
             # printonly mode
@@ -285,8 +296,9 @@ class StateConnection(object):
 
         return res
 
-    def run_target_command(self, full_command_lists: List[list], hide: bool, warn: bool, target_spec: str) ->\
-                                                                    Union[EContainer, subprocess.CompletedProcess]:
+    def run_target_command(
+        self, full_command_lists: List[list], hide: bool, warn: bool, target_spec: str
+    ) -> Union[EContainer, subprocess.CompletedProcess]:
         """
         Actually run the command (or not), depending on self.target and target_spec.
 
@@ -323,7 +335,6 @@ class StateConnection(object):
                     # necessatry because subprocess.run does not work with "cd my/path; mycommand"
                     os.chdir(self.cwd)
 
-
                 res = None
 
                 # use full_command_txt because of source venv
@@ -336,7 +347,7 @@ class StateConnection(object):
                 #     res.stdout = res.stdout.decode("utf8")
                 #     res.stderr = res.stderr.decode("utf8")
 
-                res = subprocess.run(full_command_txt, capture_output=True, shell=True, executable='/bin/bash')
+                res = subprocess.run(full_command_txt, capture_output=True, shell=True, executable="/bin/bash")
                 res.exited = res.returncode
                 res.stdout = res.stdout.decode("utf8")
                 res.stderr = res.stderr.decode("utf8")
@@ -404,11 +415,9 @@ class StateConnection(object):
 
         package_dir_name = os.path.split(package_dir)[1]
 
-        filters = \
-            f"--exclude='.git/' " \
-            f"--exclude='.idea/' " \
-            f"--exclude='*/__pycache__/*' " \
-            f"--exclude='__pycache__/' "
+        filters = (
+            f"--exclude='.git/' " f"--exclude='.idea/' " f"--exclude='*/__pycache__/*' " f"--exclude='__pycache__/' "
+        )
 
         self.rsync_upload(package_dir, "~/tmp", filters=filters, target_spec="remote")
 
@@ -419,10 +428,12 @@ class StateConnection(object):
 
 def warn_user(appname, target, unsafe_flag, deployment_path):
 
-    print(f"\n  You are running the deployment script for {bright(appname)} with target {bright(target)},\n"
-          f"\n  deploymentpath: `{deployment_path}`.\n"
-          f"\n  {yellow('Caution:')} All exisitng user data of the app and any other changes in the\n"
-          f"  deployment directory will probably be be replaced by predefined data and fixtures.\n\n")
+    print(
+        f"\n  You are running the deployment script for {bright(appname)} with target {bright(target)},\n"
+        f"\n  deploymentpath: `{deployment_path}`.\n"
+        f"\n  {yellow('Caution:')} All exisitng user data of the app and any other changes in the\n"
+        f"  deployment directory will probably be be replaced by predefined data and fixtures.\n\n"
+    )
 
     if not unsafe_flag:
         res = input("Continue (N/y)? ")
@@ -445,8 +456,9 @@ def get_dir_of_this_file(upcount: int = 1):
     return os.path.dirname(os.path.abspath(inspect.getfile(frame)))
 
 
-def get_nearest_config(fname: str = "config.env", limit: int = 4, devmode: bool = False,
-                       start_dir : Union[str, None] = None):
+def get_nearest_config(
+    fname: str = "config.env", limit: int = 4, devmode: bool = False, start_dir: Union[str, None] = None
+):
     """
     Look for a file `fname` in the directory of the calling file and then up the tree (up to `limit`-steps).
 
@@ -472,7 +484,7 @@ def get_nearest_config(fname: str = "config.env", limit: int = 4, devmode: bool 
     os.chdir(start_dir)
 
     path_list = [fname]
-    for i in range(limit+1):
+    for i in range(limit + 1):
         path = os.path.join(*path_list)
         if os.path.isfile(path):
             break

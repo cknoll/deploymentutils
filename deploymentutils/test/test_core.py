@@ -22,8 +22,10 @@ TEMPLATEDIR = "_test_templates"
 
 DIR_OF_THIS_FILE = os.path.dirname(os.path.abspath(sys.modules.get(__name__).__file__))
 
+
 class NoRemote(Exception):
     pass
+
 
 # because uberspace offers many pip_commands:
 pipc = "pip3.8"
@@ -140,7 +142,7 @@ class TC1(unittest.TestCase):
 
         # test if hide=True works
         with captured_output() as (out, err):
-            res = c.run(['python3',  '-c', 'print("123-test-789")'], target_spec="local", hide=True)
+            res = c.run(["python3", "-c", 'print("123-test-789")'], target_spec="local", hide=True)
 
         self.assertEqual(out.getvalue().strip(), "")
         self.assertTrue("123-test-789" in res.stdout)
@@ -181,7 +183,9 @@ class TC1(unittest.TestCase):
         source_path = os.path.join(DIR_OF_THIS_FILE, CONFIG_FNAME)
 
         shutil.copy2(source_path, target_path)
-        self.assertRaises(FileNotFoundError, du.get_nearest_config, fname=target_name, start_dir=DIR_OF_THIS_FILE, limit=1)
+        self.assertRaises(
+            FileNotFoundError, du.get_nearest_config, fname=target_name, start_dir=DIR_OF_THIS_FILE, limit=1
+        )
 
         config2 = du.get_nearest_config(target_name, start_dir=DIR_OF_THIS_FILE, limit=2)
         self.assertEqual(config2("testvalue1"), "OK")
@@ -250,19 +254,18 @@ class TC2(unittest.TestCase):
         res = self.c.run(f"rm -rf test_env")
         res = self.c.run(f"virtualenv -p python3.8 test_env")
         self.c.activate_venv("~/tmp/test_env/bin/activate")
-        res = self.c.run(f'pip install --upgrade pip setuptools', warn=False)
+        res = self.c.run(f"pip install --upgrade pip setuptools", warn=False)
 
         # this is expexted to fail
-        res = self.c.run(f'pip show deploymentutils', warn=False)
+        res = self.c.run(f"pip show deploymentutils", warn=False)
         self.assertNotEqual(res.exited, 0)
 
         self.c.deploy_this_package()
 
-        res = self.c.run(f'pip show deploymentutils', warn=False)
+        res = self.c.run(f"pip show deploymentutils", warn=False)
         self.assertEqual(res.exited, 0)
 
 
 if __name__ == "__main__":
-    if __name__ == '__main__':
+    if __name__ == "__main__":
         unittest.main()
-
