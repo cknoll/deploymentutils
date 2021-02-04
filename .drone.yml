@@ -1,0 +1,27 @@
+---
+kind: pipeline
+name: python-3-8
+type: docker
+
+steps:
+- name: test
+  image: python:3.8
+  commands:
+
+  # now install from the source repo
+  - pip install -r requirements.txt
+  - pip install -e .
+
+  # run the tests
+  - python3 deploymentutils/test/test_core.py --no-remote
+
+  # test whether the current version on pypy can be installed
+  - pip uninstall deploymentutils
+  - pip install deploymentutils
+
+# To save energy and resources ci should only run for a few branches
+# Related section of the docs: https://docs.drone.io/pipeline/triggers/
+trigger:
+  branch:
+    - main
+    - develop
