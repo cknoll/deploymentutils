@@ -1,3 +1,6 @@
+[![Build Status](https://cloud.drone.io/api/badges/cknoll/deploymentutils/status.svg)](https://cloud.drone.io/cknoll/deploymentutils)
+
+
 # deploymentutils
 
 This repo contains a small python package to facilitate deployment of some personal projects.
