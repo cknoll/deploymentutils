@@ -30,11 +30,13 @@ class NoRemote(Exception):
 # because uberspace offers many pip_commands:
 pipc = "pip3.8"
 
+args = sys.argv[1:]
+sys.argv = sys.argv[0:1]
+
 # remote_secrets.ini is obviously not included in this package
 try:
 
-    if 1 or "--no-remote" in sys.argv:
-        sys.argv.remove("--no-remote")
+    if "--no-remote" in args:
         raise NoRemote
 
     remote_secrets = du.get_nearest_config("remote_secrets.ini", start_dir=DIR_OF_THIS_FILE)
@@ -119,7 +121,7 @@ class TC1(unittest.TestCase):
     def test_run_command0(self):
         c = StateConnection(remote=None, user=None, target="local")
 
-        self.assertRaises(FileNotFoundError, c.run, "nonsense_command_xyz", target_spec="local")
+        self.assertRaises((FileNotFoundError, ValueError), c.run, "nonsense_command_xyz", target_spec="local")
 
         res = c.run("pwd", target_spec="local")
         self.assertEqual(res.exited, 0)
@@ -142,7 +144,7 @@ class TC1(unittest.TestCase):
 
         # test if hide=True works
         with captured_output() as (out, err):
-            res = c.run(["python3", "-c", 'print("123-test-789")'], target_spec="local", hide=True)
+            res = c.run('python3 -c "print(\'123-test-789\')"', target_spec="local", hide=True)
 
         self.assertEqual(out.getvalue().strip(), "")
         self.assertTrue("123-test-789" in res.stdout)
