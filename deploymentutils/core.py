@@ -85,6 +85,7 @@ class StateConnection(object):
 
     def __init__(self, remote, user, target="remote"):
         self.dir = None
+        self.cwd = None
         self.venv_path = None
         self.venv_target = None
         self.last_result = None
@@ -219,8 +220,12 @@ class StateConnection(object):
 
         cmd_txt = " ".join(full_command_list[-1])
 
+        self.cwd = None  # reset possible residuals from last call
         if use_dir and self.dir is not None:
-            full_command_list.insert(0, ["cd",  self.dir])
+            if self.target == "remote":
+                full_command_list.insert(0, ["cd",  self.dir])
+            else:
+                self.cwd = self.dir
 
         assert target_spec in ("remote", "local", "both")
         assert self.venv_target in (None, "remote", "both")
@@ -277,6 +282,7 @@ class StateConnection(object):
         else:
             # printonly mode
             res = EContainer(exited=0)
+
         return res
 
     def run_target_command(self, full_command_lists: List[list], hide: bool, warn: bool, target_spec: str) ->\
@@ -313,14 +319,27 @@ class StateConnection(object):
             if target_spec in ("local", "both"):
                 orig_dir = os.getcwd()
 
+                if self.cwd:
+                    # necessatry because subprocess.run does not work with "cd my/path; mycommand"
+                    os.chdir(self.cwd)
+
+
                 res = None
+
+                # use full_command_txt because of source venv
                 # this loop only saves the result of the last command in res, but that is OK
-                for cmd_list in full_command_lists:
-                    # expect a CompletedProcess Instance
-                    res = subprocess.run(cmd_list, capture_output=True)
-                    res.exited = res.returncode
-                    res.stdout = res.stdout.decode("utf8")
-                    res.stderr = res.stderr.decode("utf8")
+                # for cmd_list in full_command_lists:
+                #     # expect a CompletedProcess Instance
+                #     cmd = " ".join(cmd_list) # this is necessary due to shell=True
+                #     res = subprocess.run(cmd, capture_output=True, shell=True)
+                #     res.exited = res.returncode
+                #     res.stdout = res.stdout.decode("utf8")
+                #     res.stderr = res.stderr.decode("utf8")
+
+                res = subprocess.run(full_command_txt, capture_output=True, shell=True, executable='/bin/bash')
+                res.exited = res.returncode
+                res.stdout = res.stdout.decode("utf8")
+                res.stderr = res.stderr.decode("utf8")
 
                 os.chdir(orig_dir)
                 if res is not None and res.stdout and hide not in (True, "out"):
