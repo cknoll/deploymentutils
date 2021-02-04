@@ -16,7 +16,7 @@ steps:
   - python3 deploymentutils/test/test_core.py --no-remote
 
   # test whether the current version on pypy can be installed
-  - pip uninstall deploymentutils
+  - pip uninstall --yes deploymentutils
   - pip install deploymentutils
 
 # To save energy and resources ci should only run for a few branches
