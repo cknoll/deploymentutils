@@ -442,18 +442,25 @@ def warn_user(appname, target, unsafe_flag, deployment_path):
             exit()
 
 
-def get_dir_of_this_file(upcount: int = 1):
+def get_dir_of_this_file(upcount: int = 1, upcount_dir: int = 0):
     """
     Assumes that this function is called from a script. Return the path of that script (excluding the script itself).
 
     :param upcount:     specifies how many frames to go back/up
+    :param upcount_dir: specifies how many directories to go up (defalut: 0)
     """
 
     frame = inspect.currentframe()
     for i in range(upcount):
         frame = frame.f_back
 
-    return os.path.dirname(os.path.abspath(inspect.getfile(frame)))
+    dn = os.path.dirname(os.path.abspath(inspect.getfile(frame)))
+
+    # if specified, go upwards some additional levels
+    for i in range(upcount_dir):
+        dn = os.path.dirname(dn)
+
+    return dn
 
 
 def get_nearest_config(

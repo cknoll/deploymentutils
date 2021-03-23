@@ -144,7 +144,7 @@ class TC1(unittest.TestCase):
 
         # test if hide=True works
         with captured_output() as (out, err):
-            res = c.run('python3 -c "print(\'123-test-789\')"', target_spec="local", hide=True)
+            res = c.run("python3 -c \"print('123-test-789')\"", target_spec="local", hide=True)
 
         self.assertEqual(out.getvalue().strip(), "")
         self.assertTrue("123-test-789" in res.stdout)
