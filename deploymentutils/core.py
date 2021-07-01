@@ -379,12 +379,40 @@ class StateConnection(object):
         # construct the destionation
         if self.target == "remote":
             full_dest = f"{self.user}@{self.remote}:{dest}"
-            cmd_start = "rsync -pthrvz --rsh='ssh  -p 22'"
         else:
             full_dest = dest
+
+        return self._rsync_call(source, full_dest, target_spec, filters, printonly=printonly, tol_nonzero_exit=tol_nonzero_exit)
+
+    def rsync_download(self, source, dest, target_spec, filters="", printonly=False, tol_nonzero_exit=False):
+        """
+        Perform the appropriate rsync command (or not), depending on self.target and target_spec.
+
+        :param source:
+        :param dest:
+        :param target_spec:
+        :param filters:
+        :param printonly:
+        :param tol_nonzero_exit:    boolean; tolerate nonzero exit code
+        :return:
+        """
+
+        # construct the source
+        if self.target == "remote":
+            full_source = f"{self.user}@{self.remote}:{source}"
+        else:
+            full_source = source
+
+        return self._rsync_call(full_source, dest, target_spec, filters, printonly=printonly, tol_nonzero_exit=tol_nonzero_exit)
+
+    def _rsync_call(self, source, dest, target_spec, filters, printonly=False, tol_nonzero_exit=False):
+
+        if self.target == "remote":
+            cmd_start = "rsync -pthrvz --rsh='ssh  -p 22'"
+        else:
             cmd_start = "rsync -pthrvz"
 
-        cmd = f"{cmd_start} {filters} {source} {full_dest}"
+        cmd = f"{cmd_start} {filters} {source} {dest}"
 
         if printonly:
             print("->:", cmd)
@@ -426,10 +454,12 @@ class StateConnection(object):
         self.run(f"{pip_command} install ~/tmp/{package_dir_name}")
 
 
-def warn_user(appname, target, unsafe_flag, deployment_path):
+def warn_user(appname, target, unsafe_flag, deployment_path, user=None, host=None):
 
+    user_at_host = f"{user}@{host}"
     print(
-        f"\n  You are running the deployment script for {bright(appname)} with target {bright(target)},\n"
+        f"\n  You are running the deployment for {bright(appname)} with target {bright(target)} "
+        f"→ {bright(user_at_host)},\n"
         f"\n  deploymentpath: `{deployment_path}`.\n"
         f"\n  {yellow('Caution:')} All exisitng user data of the app and any other changes in the\n"
         f"  deployment directory will probably be be replaced by predefined data and fixtures.\n\n"
