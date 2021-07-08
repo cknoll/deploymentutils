@@ -10,6 +10,8 @@ from invoke import UnexpectedExit
 from jinja2 import Environment, FileSystemLoader
 from colorama import Style, Fore
 from ipydex import IPS
+import datetime
+
 
 
 class Container(object):
@@ -191,7 +193,6 @@ class StateConnection(object):
         elif not pwd_txt.endswith(os.path.split(path)[1]):
             if not tolerate_error and not path.startswith("~") and not path.startswith("$"):
                 print(bred(f"Could not change directory. `pwd`-result: {res.stdout}"))
-                IPS(print_tb=-1)
             self.dir = old_path
             res = EContainer(exited=1, old_res=res)
 
@@ -550,6 +551,48 @@ def get_nearest_config(
 
     os.chdir(old_dir)
     return config
+
+
+def set_repo_tag(ref_path:str = None, message:str = None, repo_path:str = None) -> None:
+    """
+    Set a git tag to the current or specified repo (default: `deploy/<datetime>`)
+
+    :param ref_path:    name of the tag; default: `deploy/<datetime>`
+    :param message:     message, optional
+    :param repo_path:   path to repository (optional); if not provided take the parent dir of the calling script
+
+    :return:
+    """
+
+    try:
+        from git import Repo, InvalidGitRepositoryError
+    except ImportError:
+        err_msg = "Could not import `git`-package. Omit tagging."
+        print(yellow(err_msg))
+        return None
+
+    if repo_path is None:
+        # assume that this function is called from a deployment script which lives in repo_root/subdir/deploy.py
+        repo_path = get_dir_of_this_file(upcount=2, upcount_dir=0)
+
+    repo_path = os.path.abspath(repo_path)
+    assert os.path.isdir(repo_path)
+
+    try:
+        repo = Repo(repo_path)
+    except InvalidGitRepositoryError:
+        err_msg = "Could not find git repository. Omit tagging."
+        print(yellow(err_msg))
+        return None
+
+    if ref_path is None:
+        now = datetime.datetime.now().strftime("%Y-%m-%d__%H-%M-%S")
+
+        ref_path = f"deploy/{now}"
+
+    repo.create_tag(ref_path, message)
+
+    print(f"Created tag for repo: `{ref_path}`.")
 
 
 def dim(txt):
