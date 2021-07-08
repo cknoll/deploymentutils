@@ -1,12 +1,11 @@
 import unittest
 import os
 import shutil
-import json
-import tempfile
 from contextlib import contextmanager
 import sys
 from io import StringIO
 import decouple
+import tempfile
 
 import deploymentutils as du
 from deploymentutils import render_template, StateConnection, get_dir_of_this_file
@@ -18,9 +17,10 @@ from ipydex import IPS
 These tests can only cover a fraction of the actual features, because the tests do not have access to a remote machine
 """
 
-TEMPLATEDIR = "_test_templates"
-
 DIR_OF_THIS_FILE = os.path.dirname(os.path.abspath(sys.modules.get(__name__).__file__))
+
+TEMPLATEDIR = os.path.join(DIR_OF_THIS_FILE, "_test_templates")
+TESTDATADIR = os.path.join(DIR_OF_THIS_FILE, "_test_data")
 
 
 class NoRemote(Exception):
@@ -69,15 +69,14 @@ class TC1(unittest.TestCase):
     def test_get_dir_of_this_file(self):
         test_path = get_dir_of_this_file()
 
-        expected_path = os.path.join("deploymentutils", "test")
+        expected_path = "test"
         self.assertTrue(test_path.endswith(expected_path))
 
     def test_render_remplate(self):
-        test_path = DIR_OF_THIS_FILE
-        tmpl_path = os.path.join(test_path, TEMPLATEDIR, "template_1.txt")
+        tmpl_path = os.path.join(TEMPLATEDIR, "template_1.txt")
 
         # test creation of target file next to the template
-        target_path = os.path.join(test_path, TEMPLATEDIR, "1.txt")
+        target_path = os.path.join(TEMPLATEDIR, "1.txt")
         self.assertFalse(os.path.isfile(target_path))
 
         res = render_template(tmpl_path, context=dict(abc="test1", xyz=123))
@@ -149,6 +148,52 @@ class TC1(unittest.TestCase):
         self.assertEqual(out.getvalue().strip(), "")
         self.assertTrue("123-test-789" in res.stdout)
 
+    def test_run_command_with_env_var(self):
+        c = StateConnection(remote=None, user=None, target="local")
+
+        c.set_env("TEST_ENV_VAR", "ABC-XYZ")
+        res = c.run("echo $TEST_ENV_VAR", target_spec="local")
+        self.assertIn("ABC-XYZ", res.stdout)
+
+    def test_rsync_upload(self):
+
+        c = StateConnection(remote=None, user=None, target="local")
+        target_path = os.path.abspath(os.path.join(os.getenv("HOME"), "tmp", "du_rsync_test"))
+        c.run(f"rm -rf {target_path}", target_spec="both")
+        c.run(f"mkdir -p {target_path}", target_spec="both")
+
+        src1 = os.path.join(TESTDATADIR, "data1", "dir")
+        src2 = os.path.join(TESTDATADIR, "data2", "dir")
+        src3 = os.path.join(TESTDATADIR, "data3", "dir")
+        res = c.rsync_upload(src1, dest=target_path, target_spec="both")
+
+        self.assertEqual(res.exited, 0)
+
+        expected_structure = [
+            (f'{target_path}', ['dir'], []),
+            (f'{target_path}/dir', [], ['file1.txt'])
+        ]
+
+        real_structure = sorted_walk_lists(target_path)
+        self.assertEqual(expected_structure, real_structure)
+
+        res = c.rsync_upload(src2, dest=target_path, target_spec="both")
+        expected_structure = [
+            (f'{target_path}', ['dir'], []),
+            (f'{target_path}/dir', ['subdir'], ['file1.txt', 'file2.txt']),
+            (f'{target_path}/dir/subdir', [], ['file3.txt'])
+        ]
+        real_structure = sorted_walk_lists(target_path)
+        self.assertEqual(expected_structure, real_structure)
+
+        res = c.rsync_upload(src3, dest=target_path, delete=True, target_spec="both")
+        expected_structure = [
+            (f'{target_path}', ['dir'], []),
+            (f'{target_path}/dir', [], ['file1.txt', 'file4.txt']),
+        ]
+        real_structure = sorted_walk_lists(target_path)
+        self.assertEqual(expected_structure, real_structure)
+
     def test_get_nearest_config(self):
 
         # noinspection PyPep8Naming
@@ -179,7 +224,7 @@ class TC1(unittest.TestCase):
         # now make a copy of the config file and place it in a parent dir
 
         target_name = CONFIG_FNAME.replace(".ini", "_XYZ.ini")
-        target_path = os.path.join(DIR_OF_THIS_FILE, "../src/deploymentutils", "..", target_name)
+        target_path = os.path.join(DIR_OF_THIS_FILE, "..", "..", target_name)
         self.assertRaises(FileNotFoundError, du.get_nearest_config, fname=target_name)
 
         source_path = os.path.join(DIR_OF_THIS_FILE, CONFIG_FNAME)
@@ -266,6 +311,34 @@ class TC2(unittest.TestCase):
 
         res = self.c.run(f"pip show deploymentutils", warn=False)
         self.assertEqual(res.exited, 0)
+
+    def test_run_command_with_env_var(self):
+
+        self.c.set_env("TEST_ENV_VAR", "ABC-XYZ")
+        res = self.c.run("echo $TEST_ENV_VAR", target_spec="both")
+        self.assertIn("ABC-XYZ", res.stdout)
+
+# ######################################################################################################################
+
+#                                  helper functions for tests
+
+# ######################################################################################################################
+
+
+def sorted_walk_lists(target_path):
+    """Helper function to ensure reproducible result of os.walk()"""
+
+    top_list = list(os.walk(target_path))
+    for tup in top_list:
+        t1, t2, t3 = tup
+        assert isinstance(t1, str)
+        assert isinstance(t2, list)
+        assert isinstance(t3, list)
+
+        t2.sort()
+        t3.sort()
+
+    return top_list
 
 
 if __name__ == "__main__":

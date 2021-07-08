@@ -452,15 +452,19 @@ class StateConnection(object):
 
         if printonly:
             print("->:", cmd)
+            res = EContainer(exited=0)
         elif target_spec != "both" and self.target != target_spec:
             print(dim(f"> Omitting rsync command `{cmd}`\n> due to target_spec: {target_spec}."))
+            res = EContainer(exited=0)
         else:
             # TODO: instead of locally calling rsync, find a more elegant (plattform-independent) way to do this
             exitcode = os.system(cmd)
+            res = EContainer(exited=exitcode)
 
             if not tol_nonzero_exit and exitcode != 0:
                 msg = "rsync failed. See error message above."
                 raise ValueError(msg)
+        return res
 
     def deploy_this_package(self, pip_command="pip"):
         """
