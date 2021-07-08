@@ -4,13 +4,15 @@ from typing_extensions import Literal  # for py3.7 support
 import inspect
 import subprocess
 import argparse
+import datetime
+import time
+import requests
 from fabric import Connection
 from paramiko.ssh_exception import PasswordRequiredException
 from invoke import UnexpectedExit
 from jinja2 import Environment, FileSystemLoader
 from colorama import Style, Fore
 from ipydex import IPS
-import datetime
 
 
 class Container(object):
@@ -93,6 +95,7 @@ class StateConnection(object):
         self.last_command = None
         self.remote = remote
         self.user = user
+        self.env_variables = {}
 
         assert target in ("remote", "local")
         self.target = target
@@ -197,6 +200,9 @@ class StateConnection(object):
 
         return res
 
+    def set_env(self, name: str, value: str):
+        self.env_variables[name] = value
+
     def run(
         self,
         cmd,
@@ -236,6 +242,9 @@ class StateConnection(object):
 
         assert target_spec in ("remote", "local", "both")
         assert self.venv_target in (None, "remote", "both")
+
+        for env_var, value in self.env_variables.items():
+            full_command_list.insert(0, ["export", f'{env_var}="{value}"'])
 
         venv_target_condition = self.venv_target == "both" or (target_spec != "local" and self.venv_target is not None)
 
@@ -363,7 +372,9 @@ class StateConnection(object):
 
         return res
 
-    def rsync_upload(self, source, dest, target_spec, filters="", printonly=False, tol_nonzero_exit=False):
+    def rsync_upload(
+        self, source, dest, target_spec, filters="", printonly=False, tol_nonzero_exit=False, delete=False
+    ):
         """
         Perform the appropriate rsync command (or not), depending on self.target and target_spec.
 
@@ -373,6 +384,7 @@ class StateConnection(object):
         :param filters:
         :param printonly:
         :param tol_nonzero_exit:    boolean; tolerate nonzero exit code
+        :param delete:              insert the --delete flag
         :return:
         """
 
@@ -383,10 +395,18 @@ class StateConnection(object):
             full_dest = dest
 
         return self._rsync_call(
-            source, full_dest, target_spec, filters, printonly=printonly, tol_nonzero_exit=tol_nonzero_exit
+            source,
+            full_dest,
+            target_spec,
+            filters,
+            printonly=printonly,
+            tol_nonzero_exit=tol_nonzero_exit,
+            delete=delete,
         )
 
-    def rsync_download(self, source, dest, target_spec, filters="", printonly=False, tol_nonzero_exit=False):
+    def rsync_download(
+        self, source, dest, target_spec, filters="", printonly=False, tol_nonzero_exit=False, delete=False
+    ):
         """
         Perform the appropriate rsync command (or not), depending on self.target and target_spec.
 
@@ -396,6 +416,7 @@ class StateConnection(object):
         :param filters:
         :param printonly:
         :param tol_nonzero_exit:    boolean; tolerate nonzero exit code
+        :param delete:              insert the --delete flag
         :return:
         """
 
@@ -406,15 +427,26 @@ class StateConnection(object):
             full_source = source
 
         return self._rsync_call(
-            full_source, dest, target_spec, filters, printonly=printonly, tol_nonzero_exit=tol_nonzero_exit
+            full_source,
+            dest,
+            target_spec,
+            filters,
+            printonly=printonly,
+            tol_nonzero_exit=tol_nonzero_exit,
+            delete=delete,
         )
 
-    def _rsync_call(self, source, dest, target_spec, filters, printonly=False, tol_nonzero_exit=False):
+    def _rsync_call(self, source, dest, target_spec, filters, printonly=False, tol_nonzero_exit=False, delete=False):
+
+        if delete is True:
+            d = " --delete"
+        else:
+            d = ""
 
         if self.target == "remote":
-            cmd_start = "rsync -pthrvz --rsh='ssh  -p 22'"
+            cmd_start = f"rsync -pthrvz{d} --rsh='ssh  -p 22'"
         else:
-            cmd_start = "rsync -pthrvz"
+            cmd_start = f"rsync -pthrvz{d}"
 
         cmd = f"{cmd_start} {filters} {source} {dest}"
 
@@ -441,11 +473,12 @@ class StateConnection(object):
 
         assert self.target == "remote"
 
-        package_dir = os.path.dirname(get_dir_of_this_file())
+        project_main_dir = get_dir_of_this_file(upcount_dir=2)  # this is where setup.py lives (toplevel)
+        assert os.path.isfile(f"{project_main_dir}/setup.py")
 
-        package_name = os.path.split(get_dir_of_this_file())[1]
-
+        package_dir = project_main_dir
         package_dir_name = os.path.split(package_dir)[1]
+        package_name = os.path.split(get_dir_of_this_file())[1]
 
         filters = (
             f"--exclude='.git/' " f"--exclude='.idea/' " f"--exclude='*/__pycache__/*' " f"--exclude='__pycache__/' "
@@ -453,7 +486,7 @@ class StateConnection(object):
 
         self.rsync_upload(package_dir, "~/tmp", filters=filters, target_spec="remote")
 
-        self.run(f"{pip_command} uninstall -y {package_name}")
+        self.run(f"{pip_command} uninstall -y {package_name}", warn=False)
 
         self.run(f"{pip_command} install ~/tmp/{package_dir_name}")
 
@@ -596,6 +629,24 @@ def set_repo_tag(ref_path: str = None, message: str = None, repo_path: str = Non
     repo.create_tag(ref_path, message)
 
     print(f"Created tag for repo: `{ref_path}`.")
+
+
+def ensure_http_response(url, expected_status_code=200, sleep=0):
+
+    assert float(sleep) == sleep and sleep >= 0, f"invalid value for sleep: {sleep}"
+
+    time.sleep(sleep)
+    try:
+        r = requests.get(url)
+    except requests.exceptions.SSLError as err:
+        print(bred(f"{url}: There was an SSLError (see below)"))
+        print(err)
+        return
+
+    if r.status_code == expected_status_code:
+        print(bgreen(f"{url}: expected status code received: {expected_status_code}."))
+    else:
+        print(bred(f"{url}: unexpected status code: {r.status_code}."))
 
 
 def dim(txt):

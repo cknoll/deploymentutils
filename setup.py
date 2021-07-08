@@ -1,6 +1,15 @@
+import sys
+import os
 from setuptools import setup, find_packages
 
-from deploymentutils.release import __version__
+packagename = "deploymentutils"
+
+# consider the path of `setup.py` as root directory:
+PROJECTROOT = os.path.dirname(sys.argv[0]) or "."
+release_path = os.path.join(PROJECTROOT, "src", packagename, "release.py")
+with open(release_path, encoding="utf8") as release_file:
+    __version__ = release_file.read().split('__version__ = "', 1)[1].split('"', 1)[0]
+
 
 with open("README.md", encoding="utf-8") as readme_file:
     readme = readme_file.read()
@@ -11,7 +20,7 @@ with open("requirements.txt") as requirements_file:
 
 
 setup(
-    name="deploymentutils",
+    name=packagename,
     author="Carsten Knoll",
     author_email="carsten.knoll@posteo.de",
     classifiers=[
@@ -26,6 +35,7 @@ setup(
     long_description_content_type="text/markdown",
     include_package_data=True,
     keywords="ssh, remote execution",
-    packages=find_packages(),
+    packages=find_packages("src"),
+    package_dir={"": "src"},
     version=__version__,
 )

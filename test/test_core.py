@@ -179,7 +179,7 @@ class TC1(unittest.TestCase):
         # now make a copy of the config file and place it in a parent dir
 
         target_name = CONFIG_FNAME.replace(".ini", "_XYZ.ini")
-        target_path = os.path.join(DIR_OF_THIS_FILE, "..", "..", target_name)
+        target_path = os.path.join(DIR_OF_THIS_FILE, "../src/deploymentutils", "..", target_name)
         self.assertRaises(FileNotFoundError, du.get_nearest_config, fname=target_name)
 
         source_path = os.path.join(DIR_OF_THIS_FILE, CONFIG_FNAME)
