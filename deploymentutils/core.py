@@ -13,7 +13,6 @@ from ipydex import IPS
 import datetime
 
 
-
 class Container(object):
     def __init__(self, **kwargs):
         self.__dict__.update(**kwargs)
@@ -383,7 +382,9 @@ class StateConnection(object):
         else:
             full_dest = dest
 
-        return self._rsync_call(source, full_dest, target_spec, filters, printonly=printonly, tol_nonzero_exit=tol_nonzero_exit)
+        return self._rsync_call(
+            source, full_dest, target_spec, filters, printonly=printonly, tol_nonzero_exit=tol_nonzero_exit
+        )
 
     def rsync_download(self, source, dest, target_spec, filters="", printonly=False, tol_nonzero_exit=False):
         """
@@ -404,7 +405,9 @@ class StateConnection(object):
         else:
             full_source = source
 
-        return self._rsync_call(full_source, dest, target_spec, filters, printonly=printonly, tol_nonzero_exit=tol_nonzero_exit)
+        return self._rsync_call(
+            full_source, dest, target_spec, filters, printonly=printonly, tol_nonzero_exit=tol_nonzero_exit
+        )
 
     def _rsync_call(self, source, dest, target_spec, filters, printonly=False, tol_nonzero_exit=False):
 
@@ -553,7 +556,7 @@ def get_nearest_config(
     return config
 
 
-def set_repo_tag(ref_path:str = None, message:str = None, repo_path:str = None) -> None:
+def set_repo_tag(ref_path: str = None, message: str = None, repo_path: str = None) -> None:
     """
     Set a git tag to the current or specified repo (default: `deploy/<datetime>`)
 
