@@ -535,15 +535,15 @@ def get_dir_of_this_file(upcount: int = 1, upcount_dir: int = 0):
 
 
 def get_nearest_config(
-    fname: str = "config.env", limit: int = 4, devmode: bool = False, start_dir: Union[str, None] = None
+    fname: str = "config.ini", limit: int = None, devmode: bool = False, start_dir: Union[str, None] = None
 ):
     """
     Look for a file `fname` in the directory of the calling file and then up the tree (up to `limit`-steps).
 
     Advantage over directly using `from decouple import config` the full filename can be defined explicitly.
 
-    :param fname:
-    :param limit:       How much steps to go up at maximum
+    :param fname:       filename or absolute path
+    :param limit:       How much steps to go up at maximum (default: 4, if fname is only a filename)
     :param devmode:     Flag that triggers development mode (default: False).
                         If True variables which end with "__DEVMODE" will replace variables without such appendix
 
@@ -553,10 +553,23 @@ def get_nearest_config(
     """
     assert fname.endswith(".ini")
 
+    path0, fname = os.path.split(fname)
+
+    if path0 != "":
+        assert start_dir is None
+        assert limit is None
+        path0 = os.path.abspath(path0)
+        limit = 0
+    elif limit is None:
+        limit = 4  # set the default value if fname was only a filename
+
     old_dir = os.getcwd()
 
     if start_dir is None:
-        start_dir = get_dir_of_this_file(upcount=2)
+        if path0 == "":
+            start_dir = get_dir_of_this_file(upcount=2)
+        else:
+            start_dir = path0
     else:
         assert os.path.isdir(start_dir)
     os.chdir(start_dir)
@@ -593,12 +606,13 @@ def get_nearest_config(
     return config
 
 
-def set_repo_tag(ref_path: str = None, message: str = None, repo_path: str = None) -> None:
+def set_repo_tag(ref_path: str = None, message: str = None, repo_path: str = None, ask=True) -> None:
     """
     Set a git tag to the current or specified repo (default: `deploy/<datetime>`)
 
     :param ref_path:    name of the tag; default: `deploy/<datetime>`
     :param message:     message, optional
+    :param ask:         flag whether to ask before tagging
     :param repo_path:   path to repository (optional); if not provided take the parent dir of the calling script
 
     :return:
@@ -610,6 +624,12 @@ def set_repo_tag(ref_path: str = None, message: str = None, repo_path: str = Non
         err_msg = "Could not import `git`-package. Omit tagging."
         print(yellow(err_msg))
         return None
+
+    if ask:
+        res = input("\n should a new tag be created for the git repo (y/N)? ")
+
+        if res.lower().strip() != "y":
+            return
 
     if repo_path is None:
         # assume that this function is called from a deployment script which lives in repo_root/subdir/deploy.py
@@ -626,10 +646,12 @@ def set_repo_tag(ref_path: str = None, message: str = None, repo_path: str = Non
         return None
 
     if ref_path is None:
-        now = datetime.datetime.now().strftime("%Y-%m-%d__%H-%M-%S")
+        now = time.strftime("%Y-%m-%d__%H-%M-%S") + f"_{os.environ['TZ']}"
 
         ref_path = f"deploy/{now}"
 
+    if repo.is_dirty():
+        repo.git.commit("-a", "-m", "autocommit during deployment")
     repo.create_tag(ref_path, message)
 
     print(f"Created tag for repo: `{ref_path}`.")
@@ -645,12 +667,14 @@ def ensure_http_response(url, expected_status_code=200, sleep=0):
     except requests.exceptions.SSLError as err:
         print(bred(f"{url}: There was an SSLError (see below)"))
         print(err)
-        return
+        return 1
 
     if r.status_code == expected_status_code:
         print(bgreen(f"{url}: expected status code received: {expected_status_code}."))
+        return 0
     else:
         print(bred(f"{url}: unexpected status code: {r.status_code}."))
+        return 2
 
 
 def dim(txt):

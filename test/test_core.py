@@ -14,7 +14,13 @@ from deploymentutils import render_template, StateConnection, get_dir_of_this_fi
 from ipydex import IPS
 
 """
-These tests can only cover a fraction of the actual features, because the tests do not have access to a remote machine
+These tests only cover a fraction of the actual features. Some tests require access to a remote machine.
+
+
+run tests locally with:
+`export NOREMOTE=True; python -m unittest`
+or
+`export NOREMOTE=True; rednose`
 """
 
 DIR_OF_THIS_FILE = os.path.dirname(os.path.abspath(sys.modules.get(__name__).__file__))
@@ -36,7 +42,7 @@ sys.argv = sys.argv[0:1]
 # remote_secrets.ini is obviously not included in this package
 try:
 
-    if "--no-remote" in args:
+    if "--no-remote" in args or os.getenv('NOREMOTE', "False").lower() == "true":
         raise NoRemote
 
     remote_secrets = du.get_nearest_config("remote_secrets.ini", start_dir=DIR_OF_THIS_FILE)
@@ -237,6 +243,16 @@ class TC1(unittest.TestCase):
         config2 = du.get_nearest_config(target_name, start_dir=DIR_OF_THIS_FILE, limit=2)
         self.assertEqual(config2("testvalue1"), "OK")
         os.remove(target_path)
+
+        abspath = "/does/not/exist.ini"
+
+        self.assertRaises(
+            FileNotFoundError, du.get_nearest_config, fname=abspath, start_dir=None
+        )
+
+        abspath = os.path.join(DIR_OF_THIS_FILE, "test_config.ini")
+        config3 = du.get_nearest_config(abspath)
+        self.assertEqual(config3("testvalue1"), "OK")
 
 
 @unittest.skipUnless(remote_server is not None, "no remote server specified")
