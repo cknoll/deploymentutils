@@ -6,6 +6,7 @@ import sys
 from io import StringIO
 import decouple
 import tempfile
+import json
 
 import deploymentutils as du
 from deploymentutils import render_template, StateConnection, get_dir_of_this_file
@@ -27,6 +28,7 @@ DIR_OF_THIS_FILE = os.path.dirname(os.path.abspath(sys.modules.get(__name__).__f
 
 TEMPLATEDIR = os.path.join(DIR_OF_THIS_FILE, "_test_templates")
 TESTDATADIR = os.path.join(DIR_OF_THIS_FILE, "_test_data")
+TESTJSONDATADIR = os.path.join(DIR_OF_THIS_FILE, "_test_json_data")
 
 
 class NoRemote(Exception):
@@ -253,6 +255,30 @@ class TC1(unittest.TestCase):
         abspath = os.path.join(DIR_OF_THIS_FILE, "test_config.ini")
         config3 = du.get_nearest_config(abspath)
         self.assertEqual(config3("testvalue1"), "OK")
+
+    def test_render_json(self):
+        ##!
+
+        data_path = os.path.join(TESTJSONDATADIR, "data1.json")
+        target_path = tempfile.mktemp()
+
+        new_data = {
+
+            "key2": {
+                "flipando": 1234
+            },
+
+            "key3": 100
+        }
+
+        du.render_json_template(data_path, new_data, target_path)
+
+        self.assertTrue(os.path.isfile(target_path))
+        with open(target_path) as jsonfile:
+            res = json.load(jsonfile)
+
+        self.assertEqual(res["key3"], 100)
+        os.remove(target_path)
 
 
 @unittest.skipUnless(remote_server is not None, "no remote server specified")
