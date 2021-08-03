@@ -4,6 +4,7 @@
     "ipsum": "bar"
   },
   "key2": {
-    "flipando": "baz"
+    "stable_key": "baz",
+    "xyz": "TOBECHANGED"
   }
 }

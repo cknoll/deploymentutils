@@ -13,6 +13,7 @@ from paramiko.ssh_exception import PasswordRequiredException
 from invoke import UnexpectedExit
 from jinja2 import Environment, FileSystemLoader, Template
 from colorama import Style, Fore
+import yaml
 from ipydex import IPS
 
 
@@ -84,20 +85,53 @@ def render_template(tmpl_path, context, target_path=None):
     return result
 
 
-def render_json_template(base_data_path, new_data, target_path):
+def merge_dicts(a, b, path=None):
+    """
+    merges dict b into dict a. In case of conflict: choose value from b
+    source: https://stackoverflow.com/a/7205107/333403 (adapted)
+
+    :param a:
+    :param b:
+    :param path:
+    :return:
+    """
+    if path is None:
+        path = []
+    for key in b:
+        if key in a:
+            if isinstance(a[key], dict) and isinstance(b[key], dict):
+                merge_dicts(a[key], b[key], path + [str(key)])
+            else:
+                # overwrite a[key]
+                a[key] = b[key]
+        else:
+            # add a[key]
+            a[key] = b[key]
+    return a
+
+
+def render_json_template(base_data_path, new_data, target_path, format=None):
     """
     Load data from a json file update the dict and save it
 
     :param base_data_path:
     :param new_data:
     :param target_path:
+    :param format:          explictly specify format or None (guess)
     :return:
     """
 
+    if (format is None and base_data_path.endswith(".json")) or format == "json":
+        load_func = json.load
+    elif (format is None and base_data_path.endswith(".yml")) or format == "yaml":
+        load_func = yaml.safe_load
+    else:
+        raise ValueError(f"Unknown format for {base_data_path}")
+
     with open(base_data_path) as jsonfile:
-        payload_data = json.load(jsonfile)
+        payload_data = load_func(jsonfile)
     assert isinstance(payload_data, dict)
-    payload_data.update(new_data)
+    merge_dicts(payload_data, new_data)
     template = Template("""{{ data | tojson(indent=2) }}""")
     result = template.render(data=payload_data)
 

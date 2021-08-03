@@ -1,0 +1,11 @@
+---
+
+# this file is YAML but will be rendered to json
+key1:
+  lore: foo
+  ipsum: baz
+
+key2:
+  stable_key: baz
+
+type: YAML

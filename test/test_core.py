@@ -257,7 +257,6 @@ class TC1(unittest.TestCase):
         self.assertEqual(config3("testvalue1"), "OK")
 
     def test_render_json(self):
-        ##!
 
         data_path = os.path.join(TESTJSONDATADIR, "data1.json")
         target_path = tempfile.mktemp()
@@ -265,7 +264,8 @@ class TC1(unittest.TestCase):
         new_data = {
 
             "key2": {
-                "flipando": 1234
+                "abc": 1234,
+                "xyz": "new value"
             },
 
             "key3": 100
@@ -277,7 +277,35 @@ class TC1(unittest.TestCase):
         with open(target_path) as jsonfile:
             res = json.load(jsonfile)
 
-        self.assertEqual(res["key3"], 100)
+        # test merge (persistence of old data)
+        self.assertEqual(res["key1"]["lore"], "foo")
+        self.assertEqual(res["key2"]["stable_key"], "baz")
+
+        # test new data
+        self.assertEqual(res["key2"]["xyz"], "new value") # old key new value
+        self.assertEqual(res["key2"]["abc"], 1234) # new key
+        self.assertEqual(res["key3"], 100) # new top level key
+        os.remove(target_path)
+
+        # do the same with yaml source file
+        data_path = os.path.join(TESTJSONDATADIR, "data2.yml")
+
+        du.render_json_template(data_path, new_data, target_path)
+
+        self.assertTrue(os.path.isfile(target_path))
+        with open(target_path) as jsonfile:
+            res = json.load(jsonfile)
+
+        self.assertEqual(res["type"], "YAML")
+
+        # test merge (persistence of old data)
+        self.assertEqual(res["key1"]["lore"], "foo")
+        self.assertEqual(res["key2"]["stable_key"], "baz")
+
+        # test new data
+        self.assertEqual(res["key2"]["xyz"], "new value")  # old key new value
+        self.assertEqual(res["key2"]["abc"], 1234)  # new key
+        self.assertEqual(res["key3"], 100)  # new top level key
         os.remove(target_path)
 
 
