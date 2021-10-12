@@ -5,7 +5,6 @@ import inspect
 import subprocess
 import argparse
 import json
-import datetime
 import time
 import requests
 from fabric import Connection
@@ -16,6 +15,8 @@ from colorama import Style, Fore
 import yaml
 import secrets
 import configparser
+
+# noinspection PyUnresolvedReferences
 from ipydex import IPS
 
 
@@ -112,20 +113,20 @@ def merge_dicts(a, b, path=None):
     return a
 
 
-def render_json_template(base_data_path, new_data, target_path, format=None):
+def render_json_template(base_data_path, new_data, target_path, data_format=None):
     """
-    Load data from a json file update the dict and save it
+    Load data from a json file, update the dict with new_data and save it under target_path
 
     :param base_data_path:
     :param new_data:
     :param target_path:
-    :param format:          explictly specify format or None (guess)
+    :param data_format:          explictly specify format or None (guess)
     :return:
     """
 
-    if (format is None and base_data_path.endswith(".json")) or format == "json":
+    if (data_format is None and base_data_path.endswith(".json")) or data_format == "json":
         load_func = json.load
-    elif (format is None and base_data_path.endswith(".yml")) or format == "yaml":
+    elif (data_format is None and base_data_path.endswith(".yml")) or data_format == "yaml":
         load_func = yaml.safe_load
     else:
         raise ValueError(f"Unknown format for {base_data_path}")
@@ -410,18 +411,6 @@ class StateConnection(object):
                     # necessatry because subprocess.run does not work with "cd my/path; mycommand"
                     os.chdir(self.cwd)
 
-                res = None
-
-                # use full_command_txt because of source venv
-                # this loop only saves the result of the last command in res, but that is OK
-                # for cmd_list in full_command_lists:
-                #     # expect a CompletedProcess Instance
-                #     cmd = " ".join(cmd_list) # this is necessary due to shell=True
-                #     res = subprocess.run(cmd, capture_output=True, shell=True)
-                #     res.exited = res.returncode
-                #     res.stdout = res.stdout.decode("utf8")
-                #     res.stderr = res.stderr.decode("utf8")
-
                 res = subprocess.run(full_command_txt, capture_output=True, shell=True, executable="/bin/bash")
                 res.exited = res.returncode
                 res.stdout = res.stdout.decode("utf8")
@@ -567,7 +556,7 @@ class StateConnection(object):
         :param local_path:      the directory where setup.py lies
         :param target_path:     target_path for rsync (parent dir of package_dir )
         :param pip_command:
-        :param pip_flags:
+        :param pip_flags:       obsolete, only for backward compatibility
         :param package_name:
         :return:
         """
