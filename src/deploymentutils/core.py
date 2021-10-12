@@ -14,6 +14,8 @@ from invoke import UnexpectedExit
 from jinja2 import Environment, FileSystemLoader, Template
 from colorama import Style, Fore
 import yaml
+import secrets
+import configparser
 from ipydex import IPS
 
 
@@ -690,6 +692,8 @@ def get_nearest_config(
     else:
         msg = f"Could not find {fname} in current directory nor in {limit} parent dirs."
         raise FileNotFoundError(msg)
+
+    # this is kept local to keep the dependency optional
     from decouple import Config, RepositoryIni, Csv
 
     config = Config(RepositoryIni(path))
@@ -782,6 +786,64 @@ def ensure_http_response(url, expected_status_code=200, sleep=0):
     else:
         print(bred(f"{url}: unexpected status code: {r.status_code}."))
         return 2
+
+
+def remove_secrets_from_config(path):
+    """
+    Parse the ini file at `path` and create a copy where every non-comment line containing `pass` or `key`
+    has a dummy value.
+
+    Use case: When developing deployment software with deployment tools, one often wants to share the
+    general configuration but not the secrets. This function serves to automate this process.
+
+    :param path:
+    :return:
+    """
+    assert path.endswith(".ini")
+
+    config = configparser.ConfigParser()
+    config.optionxform = str  # preserve case when parsing the keys (non-default)
+    config.read(path)
+
+    with open(path) as inifile:
+        fulltext_lines = inifile.readlines()
+    keys = config["settings"].keys()
+
+    critical_keys = [k for k in keys if ("pass" in k.lower()) or ("key" in k.lower())]
+    result_lines = []
+
+    for line in fulltext_lines:
+        for ck in critical_keys:
+            # if line[:len(ck)] == ck:
+            if ck in line:
+                # critical key found, no need to search further in this line
+                break
+        else:
+            # this else-branch is triggered if the inner for loop got no break
+            # no critical key in this line
+            # -> use this line and proceed to next one
+            result_lines.append(line)
+            continue
+
+        assert ck in line
+        if line.startswith("#"):
+            # ignore this line (this might omit useful comments, but safety first!)
+            continue
+        n = 10
+        xx = secrets.token_urlsafe(2*n)
+        new_line = f"{ck} = {xx[:n]}--example-secret--{xx[n:]}\n"
+        result_lines.append(new_line)
+
+    if "production" in path:
+        new_path = path.replace("production", "example")
+    else:
+        new_path = path.replace(".ini", "-example.ini")
+
+    with open(new_path, "w") as inifile:
+        inifile.writelines(result_lines)
+
+    print("The values for the following keys were replaced: ", ", ".join(critical_keys))
+    print("File written", new_path)
 
 
 def dim(txt):

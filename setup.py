@@ -38,4 +38,5 @@ setup(
     packages=find_packages("src"),
     package_dir={"": "src"},
     version=__version__,
+    entry_points={"console_scripts": ["deploymentutils=deploymentutils.script:main"]},
 )
