@@ -36,11 +36,16 @@ class EContainer(Container):
 # it is useful for deployment scripts to handle cli arguments
 # the following reduces the boilerplate
 argparser = argparse.ArgumentParser()
-argparser.add_argument("target", help="deployment target: `local` or `remote`.", choices=["local", "remote"])
+argparser.add_argument(
+    "target", help="deployment target: `local` or `remote`.", choices=["local", "remote"]
+)
 argparser.add_argument("-u", "--unsafe", help="omit security confirmation", action="store_true")
 argparser.add_argument("-i", "--initial", help="flag for initial deployment", action="store_true")
 argparser.add_argument(
-    "-l", "--symlink", help="use symlinking instead of copying (local deployment only)", action="store_true"
+    "-l",
+    "--symlink",
+    help="use symlinking instead of copying (local deployment only)",
+    action="store_true",
 )
 
 
@@ -69,7 +74,11 @@ def render_template(tmpl_path, context, target_path=None):
 
     if target_path is None:
         special_str = "template_"
-        assert fname.startswith(special_str) and (fname.count(special_str) == 1) and len(fname) > len(special_str)
+        assert (
+            fname.startswith(special_str)
+            and (fname.count(special_str) == 1)
+            and len(fname) > len(special_str)
+        )
         res_fname = fname.replace(special_str, "")
         target_path = os.path.join(path, res_fname)
 
@@ -210,7 +219,9 @@ class StateConnection(object):
         self.venv_path = None
         self.venv_target = None
 
-    def chdir(self, path, target_spec: Literal["remote", "local", "both"] = "both", tolerate_error=False):
+    def chdir(
+        self, path, target_spec: Literal["remote", "local", "both"] = "both", tolerate_error=False
+    ):
         """
         The following works on uberspace:
 
@@ -313,7 +324,9 @@ class StateConnection(object):
         for env_var, value in self.env_variables.items():
             full_command_list.insert(0, ["export", f'{env_var}="{value}"'])
 
-        venv_target_condition = self.venv_target == "both" or (target_spec != "local" and self.venv_target is not None)
+        venv_target_condition = self.venv_target == "both" or (
+            target_spec != "local" and self.venv_target is not None
+        )
 
         if use_venv and self.venv_path is not None and venv_target_condition:
             full_command_list.insert(0, ["source", self.venv_path])
@@ -337,16 +350,18 @@ class StateConnection(object):
             try:
                 if not hide:
                     print(dim("<- "), end="")
-                res = self.run_target_command(full_command_list, hide=hide, warn=warn, target_spec=target_spec)
+                res = self.run_target_command(
+                    full_command_list, hide=hide, warn=warn, target_spec=target_spec
+                )
             except UnexpectedExit as ex:
 
                 if warn:
                     # fabric/invoke raises this error on "normal failure"
 
                     msg = (
-                        f"The command {cmd} failed. You can run it again with `warn=smart` (recommendend) or"
-                        f"`warn=True` and inspect `result.stderr` to get more information.\n"
-                        f"Original exception follows:\n"
+                        f"The command {cmd} failed. You can run it again with `warn=smart`"
+                        f"(recommendend) or `warn=True` and inspect `result.stderr` to "
+                        f"get more information.\nOriginal exception follows:\n"
                     )
 
                     raise ValueError(msg)
@@ -391,7 +406,9 @@ class StateConnection(object):
 
         # this is only for status messages
         last_command = " ".join(full_command_lists[-1])
-        omit_message = dim(f"> Omitting command `{last_command}`\n> due to target_spec: {target_spec}.")
+        omit_message = dim(
+            f"> Omitting command `{last_command}`\n> due to target_spec: {target_spec}."
+        )
 
         assert self.target in ("local", "remote"), f"Invald target: {self.target}"
         if self.target == "remote":
@@ -411,7 +428,9 @@ class StateConnection(object):
                     # necessatry because subprocess.run does not work with "cd my/path; mycommand"
                     os.chdir(self.cwd)
 
-                res = subprocess.run(full_command_txt, capture_output=True, shell=True, executable="/bin/bash")
+                res = subprocess.run(
+                    full_command_txt, capture_output=True, shell=True, executable="/bin/bash"
+                )
                 res.exited = res.returncode
                 res.stdout = res.stdout.decode("utf8")
                 res.stderr = res.stderr.decode("utf8")
@@ -428,7 +447,14 @@ class StateConnection(object):
         return res
 
     def rsync_upload(
-        self, source, dest, target_spec, filters="", printonly=False, tol_nonzero_exit=False, delete=False
+        self,
+        source,
+        dest,
+        target_spec,
+        filters="",
+        printonly=False,
+        tol_nonzero_exit=False,
+        delete=False,
     ):
         """
         Perform the appropriate rsync command (or not), depending on self.target and target_spec.
@@ -460,7 +486,14 @@ class StateConnection(object):
         )
 
     def rsync_download(
-        self, source, dest, target_spec, filters="", printonly=False, tol_nonzero_exit=False, delete=False
+        self,
+        source,
+        dest,
+        target_spec,
+        filters="",
+        printonly=False,
+        tol_nonzero_exit=False,
+        delete=False,
     ):
         """
         Perform the appropriate rsync command (or not), depending on self.target and target_spec.
@@ -491,7 +524,16 @@ class StateConnection(object):
             delete=delete,
         )
 
-    def _rsync_call(self, source, dest, target_spec, filters, printonly=False, tol_nonzero_exit=False, delete=False):
+    def _rsync_call(
+        self,
+        source,
+        dest,
+        target_spec,
+        filters,
+        printonly=False,
+        tol_nonzero_exit=False,
+        delete=False,
+    ):
 
         if delete is True:
             d = " --delete"
@@ -531,7 +573,9 @@ class StateConnection(object):
 
         assert self.target == "remote"
 
-        project_main_dir = get_dir_of_this_file(upcount_dir=2)  # this is where setup.py lives (top level)
+        project_main_dir = get_dir_of_this_file(
+            upcount_dir=2
+        )  # this is where setup.py lives (top level)
         assert os.path.isfile(f"{project_main_dir}/setup.py")
 
         package_dir = project_main_dir
@@ -539,7 +583,10 @@ class StateConnection(object):
         package_name = os.path.split(get_dir_of_this_file())[1]
 
         filters = (
-            f"--exclude='.git/' " f"--exclude='.idea/' " f"--exclude='*/__pycache__/*' " f"--exclude='__pycache__/' "
+            f"--exclude='.git/' "
+            f"--exclude='.idea/' "
+            f"--exclude='*/__pycache__/*' "
+            f"--exclude='__pycache__/' "
         )
 
         self.rsync_upload(package_dir, "~/tmp", filters=filters, target_spec="remote")
@@ -548,7 +595,9 @@ class StateConnection(object):
 
         self.run(f"{pip_command} install ~/tmp/{package_dir_name}")
 
-    def deploy_local_package(self, local_path, target_path=None, pip_command="pip", pip_flags="", package_name=None):
+    def deploy_local_package(
+        self, local_path, target_path=None, pip_command="pip", pip_flags="", package_name=None
+    ):
         """
         Upload and deploy a package from the local machine to a remote machine. This is useful to easily deploy
         local development versions. "Deployment" means installation with pip.
@@ -562,7 +611,10 @@ class StateConnection(object):
         """
 
         filters = (
-            f"--exclude='.git/' " f"--exclude='.idea/' " f"--exclude='*/__pycache__/*' " f"--exclude='__pycache__/' "
+            f"--exclude='.git/' "
+            f"--exclude='.idea/' "
+            f"--exclude='*/__pycache__/*' "
+            f"--exclude='__pycache__/' "
         )
         self.rsync_upload(local_path, "~/tmp", filters=filters, target_spec="remote")
 
@@ -633,7 +685,10 @@ def get_dir_of_this_file(upcount: int = 1, upcount_dir: int = 0):
 
 
 def get_nearest_config(
-    fname: str = "config.ini", limit: int = None, devmode: bool = False, start_dir: Union[str, None] = None
+    fname: str = "config.ini",
+    limit: int = None,
+    devmode: bool = False,
+    start_dir: Union[str, None] = None,
 ):
     """
     Look for a file `fname` in the directory of the calling file and then up the tree (up to `limit`-steps).
@@ -706,7 +761,9 @@ def get_nearest_config(
     return config
 
 
-def set_repo_tag(ref_path: str = None, message: str = None, repo_path: str = None, ask=True) -> None:
+def set_repo_tag(
+    ref_path: str = None, message: str = None, repo_path: str = None, ask=True
+) -> None:
     """
     Set a git tag to the current or specified repo (default: `deploy/<datetime>`)
 
@@ -819,7 +876,7 @@ def remove_secrets_from_config(path):
             # ignore this line (this might omit useful comments, but safety first!)
             continue
         n = 10
-        xx = secrets.token_urlsafe(2*n)
+        xx = secrets.token_urlsafe(2 * n)
         new_line = f"{ck} = {xx[:n]}--example-secret--{xx[n:]}\n"
         result_lines.append(new_line)
 

@@ -44,7 +44,7 @@ sys.argv = sys.argv[0:1]
 # remote_secrets.ini is obviously not included in this package
 try:
 
-    if "--no-remote" in args or os.getenv('NOREMOTE', "False").lower() == "true":
+    if "--no-remote" in args or os.getenv("NOREMOTE", "False").lower() == "true":
         raise NoRemote
 
     remote_secrets = du.get_nearest_config("remote_secrets.ini", start_dir=DIR_OF_THIS_FILE)
@@ -102,7 +102,9 @@ class TC1(unittest.TestCase):
         target_path = tempfile.mktemp()
 
         self.assertFalse(os.path.isfile(target_path))
-        res = render_template(tmpl_path, context=dict(abc="test1", xyz=123), target_path=target_path)
+        res = render_template(
+            tmpl_path, context=dict(abc="test1", xyz=123), target_path=target_path
+        )
         self.assertTrue(os.path.isfile(target_path))
         # after asserting that the file was created it can be removed
         os.remove(target_path)
@@ -128,7 +130,9 @@ class TC1(unittest.TestCase):
     def test_run_command0(self):
         c = StateConnection(remote=None, user=None, target="local")
 
-        self.assertRaises((FileNotFoundError, ValueError), c.run, "nonsense_command_xyz", target_spec="local")
+        self.assertRaises(
+            (FileNotFoundError, ValueError), c.run, "nonsense_command_xyz", target_spec="local"
+        )
 
         res = c.run("pwd", target_spec="local")
         self.assertEqual(res.exited, 0)
@@ -178,8 +182,8 @@ class TC1(unittest.TestCase):
         self.assertEqual(res.exited, 0)
 
         expected_structure = [
-            (f'{target_path}', ['dir'], []),
-            (f'{target_path}/dir', [], ['file1.txt'])
+            (f"{target_path}", ["dir"], []),
+            (f"{target_path}/dir", [], ["file1.txt"]),
         ]
 
         real_structure = sorted_walk_lists(target_path)
@@ -187,17 +191,17 @@ class TC1(unittest.TestCase):
 
         res = c.rsync_upload(src2, dest=target_path, target_spec="both")
         expected_structure = [
-            (f'{target_path}', ['dir'], []),
-            (f'{target_path}/dir', ['subdir'], ['file1.txt', 'file2.txt']),
-            (f'{target_path}/dir/subdir', [], ['file3.txt'])
+            (f"{target_path}", ["dir"], []),
+            (f"{target_path}/dir", ["subdir"], ["file1.txt", "file2.txt"]),
+            (f"{target_path}/dir/subdir", [], ["file3.txt"]),
         ]
         real_structure = sorted_walk_lists(target_path)
         self.assertEqual(expected_structure, real_structure)
 
         res = c.rsync_upload(src3, dest=target_path, delete=True, target_spec="both")
         expected_structure = [
-            (f'{target_path}', ['dir'], []),
-            (f'{target_path}/dir', [], ['file1.txt', 'file4.txt']),
+            (f"{target_path}", ["dir"], []),
+            (f"{target_path}/dir", [], ["file1.txt", "file4.txt"]),
         ]
         real_structure = sorted_walk_lists(target_path)
         self.assertEqual(expected_structure, real_structure)
@@ -218,7 +222,9 @@ class TC1(unittest.TestCase):
         self.assertEqual(config("testvalue5"), "Spaces are acceptable")
         self.assertEqual(config("testvalue_number"), "1234.567")
         self.assertEqual(config("testvalue_number", cast=float), 1234.567)
-        self.assertEqual(config("testvalue_csv", cast=config.Csv()), ["string1", "string2", "some more words"])
+        self.assertEqual(
+            config("testvalue_csv", cast=config.Csv()), ["string1", "string2", "some more words"]
+        )
         self.assertEqual(config("testvalue_empty_str"), "")
         self.assertEqual(config("testvalue6"), "production_option")
         self.assertEqual(config("testvalue6__DEVMODE"), "development_option")
@@ -239,7 +245,11 @@ class TC1(unittest.TestCase):
 
         shutil.copy2(source_path, target_path)
         self.assertRaises(
-            FileNotFoundError, du.get_nearest_config, fname=target_name, start_dir=DIR_OF_THIS_FILE, limit=1
+            FileNotFoundError,
+            du.get_nearest_config,
+            fname=target_name,
+            start_dir=DIR_OF_THIS_FILE,
+            limit=1,
         )
 
         config2 = du.get_nearest_config(target_name, start_dir=DIR_OF_THIS_FILE, limit=2)
@@ -248,9 +258,7 @@ class TC1(unittest.TestCase):
 
         abspath = "/does/not/exist.ini"
 
-        self.assertRaises(
-            FileNotFoundError, du.get_nearest_config, fname=abspath, start_dir=None
-        )
+        self.assertRaises(FileNotFoundError, du.get_nearest_config, fname=abspath, start_dir=None)
 
         abspath = os.path.join(DIR_OF_THIS_FILE, "test_config.ini")
         config3 = du.get_nearest_config(abspath)
@@ -261,15 +269,7 @@ class TC1(unittest.TestCase):
         data_path = os.path.join(TESTJSONDATADIR, "data1.json")
         target_path = tempfile.mktemp()
 
-        new_data = {
-
-            "key2": {
-                "abc": 1234,
-                "xyz": "new value"
-            },
-
-            "key3": 100
-        }
+        new_data = {"key2": {"abc": 1234, "xyz": "new value"}, "key3": 100}
 
         du.render_json_template(data_path, new_data, target_path)
 
@@ -282,9 +282,9 @@ class TC1(unittest.TestCase):
         self.assertEqual(res["key2"]["stable_key"], "baz")
 
         # test new data
-        self.assertEqual(res["key2"]["xyz"], "new value") # old key new value
-        self.assertEqual(res["key2"]["abc"], 1234) # new key
-        self.assertEqual(res["key3"], 100) # new top level key
+        self.assertEqual(res["key2"]["xyz"], "new value")  # old key new value
+        self.assertEqual(res["key2"]["abc"], 1234)  # new key
+        self.assertEqual(res["key3"], 100)  # new top level key
         os.remove(target_path)
 
         # do the same with yaml source file
@@ -387,6 +387,7 @@ class TC2(unittest.TestCase):
         self.c.set_env("TEST_ENV_VAR", "ABC-XYZ")
         res = self.c.run("echo $TEST_ENV_VAR", target_spec="both")
         self.assertIn("ABC-XYZ", res.stdout)
+
 
 # ######################################################################################################################
 

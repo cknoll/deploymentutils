@@ -1,6 +1,7 @@
 import argparse
 from . import core
 from ipydex import IPS, activate_ips_on_exception
+
 activate_ips_on_exception()
 
 """
@@ -10,9 +11,12 @@ This file contains the script entry point for the `deploymentutils` command line
 
 def main():
     argparser = argparse.ArgumentParser()
-    argparser.add_argument("--remove-secrets-from-config", help="Creates a new `...-example.ini` file where every "
-                           "variable ending in `_pass` or `_key` is filled with a dummy-value",
-                           metavar="path_to_config")
+    argparser.add_argument(
+        "--remove-secrets-from-config",
+        help="Creates a new `...-example.ini` file where every "
+        "variable ending in `_pass` or `_key` is filled with a dummy-value",
+        metavar="path_to_config",
+    )
 
     args = argparser.parse_args()
 
