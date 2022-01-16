@@ -16,8 +16,14 @@ import yaml
 import secrets
 import configparser
 
-# noinspection PyUnresolvedReferences
-from ipydex import IPS
+try:
+    # ipydex is used for debugging only
+    # noinspection PyUnresolvedReferences
+    from ipydex import IPS
+except ImportError:
+    def IPS(*args, **kwargs):
+        pass
+
 
 
 class Container(object):
