@@ -72,7 +72,11 @@ def captured_output():
 
 class TC1(unittest.TestCase):
     def setUp(self):
-        pass
+        self.local_files_to_delete = []
+
+    def tearDown(self):
+        for path in self.local_files_to_delete:
+            os.unlink(path)
 
     def test_get_dir_of_this_file(self):
         test_path = get_dir_of_this_file()
@@ -111,11 +115,13 @@ class TC1(unittest.TestCase):
 
     def test_argparser(self):
 
+        # noinspection PyShadowingNames
         args = du.parse_args(["-u", "local"])
 
         self.assertEqual(args.target, "local")
         self.assertEqual(args.unsafe, True)
 
+        # noinspection PyShadowingNames
         args = du.parse_args(["local"])
         self.assertEqual(args.unsafe, False)
 
@@ -307,6 +313,32 @@ class TC1(unittest.TestCase):
         self.assertEqual(res["key2"]["abc"], 1234)  # new key
         self.assertEqual(res["key3"], 100)  # new top level key
         os.remove(target_path)
+
+    def test_remove_secrets_from_config(self):
+
+        CONFIG_FNAME = "test_config.ini"
+
+        # explicitly passing start_dir seems only necessary in unittests
+        secret_config = du.get_nearest_config(CONFIG_FNAME, start_dir=DIR_OF_THIS_FILE)
+
+        new_path = du.remove_secrets_from_config(secret_config.path)
+        self.local_files_to_delete.append(new_path)
+        public_config = du.get_nearest_config(new_path)
+
+        self.assertEqual(secret_config("testvalue5"), public_config("testvalue5"))
+
+        self.assertNotEqual(secret_config("test_pass1"), public_config("test_pass1"))
+        self.assertNotEqual(secret_config("test_key1"), public_config("test_key1"))
+        self.assertIn("--example-secret--", public_config("test_pass1"))
+        self.assertIn("--example-secret--", public_config("test_key1"))
+
+        example_value1 = secret_config("testvalue1__EXAMPLE")
+        example_value2 = secret_config("testvalue2__EXAMPLE")
+        self.assertRaises(decouple.UndefinedValueError, public_config, "testvalue1__EXAMPLE")
+        self.assertRaises(decouple.UndefinedValueError, public_config, "testvalue2__EXAMPLE")
+
+        self.assertEqual(example_value1, public_config("testvalue1"))
+        self.assertEqual(example_value2, public_config("testvalue2"))
 
 
 @unittest.skipUnless(remote_server is not None, "no remote server specified")

@@ -25,7 +25,6 @@ except ImportError:
         pass
 
 
-
 class Container(object):
     def __init__(self, **kwargs):
         self.__dict__.update(**kwargs)
@@ -840,7 +839,7 @@ def ensure_http_response(url, expected_status_code=200, sleep=0):
         return 2
 
 
-def remove_secrets_from_config(path):
+def remove_secrets_from_config(path, new_path=None):
     """
     Parse the ini file at `path` and create a copy where every non-comment line containing `pass` or `key`
     has a dummy value.
@@ -848,8 +847,13 @@ def remove_secrets_from_config(path):
     Use case: When developing deployment software with deployment tools, one often wants to share the
     general configuration but not the secrets. This function serves to automate this process.
 
-    :param path:
-    :return:
+    The dummy value is either generated or read from an actual variable name with the pattern
+    `<secret-varname>-example`.  E.g. `my_pass-example = toFoh9pu`
+
+    :param path:        path of the original file
+    :param new_path:    (optional) path of new file to create
+
+    :return:            `new_path`
     """
     assert path.endswith(".ini")
 
@@ -862,40 +866,62 @@ def remove_secrets_from_config(path):
     keys = config["settings"].keys()
 
     critical_keys = [k for k in keys if ("pass" in k.lower()) or ("key" in k.lower())]
+    keys_with_example_values = [k.replace("__EXAMPLE", "") for k in keys if k.endswith("__EXAMPLE")]
+
+    action_keys = critical_keys + keys_with_example_values
     result_lines = []
+    replacement_lines = []  # some lines might need to get replaced in a second run
 
     for line in fulltext_lines:
-        for ck in critical_keys:
+        line = line.lstrip()
+        for ak in action_keys:
             # if line[:len(ck)] == ck:
-            if ck in line:
-                # critical key found, no need to search further in this line
+            if ak in line:
+                # action-key found, no need to search further in this line
                 break
         else:
             # this else-branch is triggered if the inner for loop got no break
             # no critical key in this line
             # -> use this line and proceed to next one
-            result_lines.append(line)
+            result_lines.append(line.lstrip())
             continue
 
-        assert ck in line
+        assert ak in line
         if line.startswith("#"):
             # ignore this line (this might omit useful comments, but safety first!)
             continue
-        n = 10
-        xx = secrets.token_urlsafe(2 * n)
-        new_line = f"{ck} = {xx[:n]}--example-secret--{xx[n:]}\n"
-        result_lines.append(new_line)
 
-    if "production" in path:
-        new_path = path.replace("production", "example")
+        if ak in critical_keys:
+            n = 10
+            xx = secrets.token_urlsafe(2 * n)
+            new_line = f"{ak} = {xx[:n]}--example-secret--{xx[n:]}\n"
+            result_lines.append(new_line)
+        else:
+            assert ak in keys_with_example_values
+            if line.startswith(f"{ak}__EXAMPLE"):
+                # do not add the example-key-value-line to the output
+                # but only the real key with the example value
+                continue
+            example_value = config["settings"][f"{ak}__EXAMPLE"]
+            new_line = f"{ak} = {example_value}\n"
+            result_lines.append(new_line)
+            # replacement_lines.append((ak, new_line))
+
+    if new_path is None:
+        if "production" in path:
+            new_path = path.replace("production", "example")
+        else:
+            new_path = path.replace(".ini", "-example.ini")
     else:
-        new_path = path.replace(".ini", "-example.ini")
+        if new_path == path:
+            raise ValueError("new_path must be different from original path")
 
     with open(new_path, "w") as inifile:
         inifile.writelines(result_lines)
 
     print("The values for the following keys were replaced: ", ", ".join(critical_keys))
     print("File written", new_path)
+    return new_path
 
 
 def dim(txt):
