@@ -316,6 +316,7 @@ class TC1(unittest.TestCase):
 
     def test_remove_secrets_from_config(self):
 
+        # noinspection PyPep8Naming
         CONFIG_FNAME = "test_config.ini"
 
         # explicitly passing start_dir seems only necessary in unittests
@@ -339,6 +340,9 @@ class TC1(unittest.TestCase):
 
         self.assertEqual(example_value1, public_config("testvalue1"))
         self.assertEqual(example_value2, public_config("testvalue2"))
+        self.assertEqual(public_config("testvalue7"), "string conatining testvalue1")
+
+        self.assertEqual(public_config("test_key2"), secret_config("test_key2__EXAMPLE"))
 
 
 @unittest.skipUnless(remote_server is not None, "no remote server specified")

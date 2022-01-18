@@ -865,28 +865,32 @@ def remove_secrets_from_config(path, new_path=None):
         fulltext_lines = inifile.readlines()
     keys = config["settings"].keys()
 
-    critical_keys = [k for k in keys if ("pass" in k.lower()) or ("key" in k.lower())]
+    critical_keys = [k for k in keys if (("pass" in k.lower()) or ("key" in k.lower())) and not k.endswith("__EXAMPLE")]
     keys_with_example_values = [k.replace("__EXAMPLE", "") for k in keys if k.endswith("__EXAMPLE")]
+
+    critical_keys_with_example_values = set(critical_keys).intersection(keys_with_example_values)
+    critical_keys = list(set(critical_keys) - set(keys_with_example_values))
 
     action_keys = critical_keys + keys_with_example_values
     result_lines = []
-    replacement_lines = []  # some lines might need to get replaced in a second run
 
     for line in fulltext_lines:
-        line = line.lstrip()
+
+        line = line.lstrip(" ")
+        line_parts = line.split("=")
         for ak in action_keys:
             # if line[:len(ck)] == ck:
-            if ak in line:
+            if ak in line_parts[0]:
                 # action-key found, no need to search further in this line
                 break
         else:
             # this else-branch is triggered if the inner for loop got no break
             # no critical key in this line
             # -> use this line and proceed to next one
-            result_lines.append(line.lstrip())
+            result_lines.append(line)
             continue
 
-        assert ak in line
+        assert ak in line_parts[0]
         if line.startswith("#"):
             # ignore this line (this might omit useful comments, but safety first!)
             continue
