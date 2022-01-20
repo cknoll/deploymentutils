@@ -939,7 +939,11 @@ def get_deployment_date(fpath: str, format="%Y-%m-%d %H:%M:%S") -> str:
     :return:
     """
 
-    timestamp = os.path.getmtime(fpath)
+    try:
+        timestamp = os.path.getmtime(fpath)
+    except FileNotFoundError:
+        return "<not available>"
+
     if format:
         res = datetime.datetime.fromtimestamp(timestamp).strftime(format)
     else:

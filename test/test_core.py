@@ -354,6 +354,10 @@ class TC1(unittest.TestCase):
         dt = ts - now
         self.assertTrue(dt < 1.0)
 
+        dep_date = du.get_deployment_date("__not_existing_file__")
+        self.assertEqual(dep_date, "<not available>")
+
+
 
 
 @unittest.skipUnless(remote_server is not None, "no remote server specified")
