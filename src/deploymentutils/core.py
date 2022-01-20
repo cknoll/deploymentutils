@@ -4,6 +4,7 @@ from typing_extensions import Literal  # for py3.7 support
 import inspect
 import subprocess
 import argparse
+import datetime
 import json
 import time
 import requests
@@ -926,6 +927,27 @@ def remove_secrets_from_config(path, new_path=None):
     print("The values for the following keys were replaced: ", ", ".join(critical_keys))
     print("File written", new_path)
     return new_path
+
+
+# noinspection PyShadowingBuiltins
+def get_deployment_date(fpath: str, format="%Y-%m-%d %H:%M:%S") -> str:
+    """
+    Find out the modification date of a file and return it
+
+    :param fpath:
+    :param format:
+    :return:
+    """
+
+    timestamp = os.path.getmtime(fpath)
+    if format:
+        res = datetime.datetime.fromtimestamp(timestamp).strftime(format)
+    else:
+        res = str(timestamp)
+
+    return res
+
+
 
 
 def dim(txt):

@@ -3,6 +3,8 @@ import os
 import shutil
 from contextlib import contextmanager
 import sys
+import time
+import datetime
 from io import StringIO
 import decouple
 import tempfile
@@ -29,6 +31,9 @@ DIR_OF_THIS_FILE = os.path.dirname(os.path.abspath(sys.modules.get(__name__).__f
 TEMPLATEDIR = os.path.join(DIR_OF_THIS_FILE, "_test_templates")
 TESTDATADIR = os.path.join(DIR_OF_THIS_FILE, "_test_data")
 TESTJSONDATADIR = os.path.join(DIR_OF_THIS_FILE, "_test_json_data")
+
+# noinspection PyPep8Naming
+CONFIG_FNAME = "test_config.ini"
 
 
 class NoRemote(Exception):
@@ -214,9 +219,6 @@ class TC1(unittest.TestCase):
 
     def test_get_nearest_config(self):
 
-        # noinspection PyPep8Naming
-        CONFIG_FNAME = "test_config.ini"
-
         # explicitly passing start_dir seems only necessary in unittests
 
         config = du.get_nearest_config(CONFIG_FNAME, start_dir=DIR_OF_THIS_FILE)
@@ -316,9 +318,6 @@ class TC1(unittest.TestCase):
 
     def test_remove_secrets_from_config(self):
 
-        # noinspection PyPep8Naming
-        CONFIG_FNAME = "test_config.ini"
-
         # explicitly passing start_dir seems only necessary in unittests
         secret_config = du.get_nearest_config(CONFIG_FNAME, start_dir=DIR_OF_THIS_FILE)
 
@@ -343,6 +342,18 @@ class TC1(unittest.TestCase):
         self.assertEqual(public_config("testvalue7"), "string conatining testvalue1")
 
         self.assertEqual(public_config("test_key2"), secret_config("test_key2__EXAMPLE"))
+
+    def test_get_deployment_date(self):
+        secret_config = du.get_nearest_config(CONFIG_FNAME, start_dir=DIR_OF_THIS_FILE)
+        new_path = du.remove_secrets_from_config(secret_config.path)
+        self.local_files_to_delete.append(new_path)
+
+        dep_date = du.get_deployment_date(new_path)
+        now = time.time()
+        ts = datetime.datetime.strptime(dep_date, "%Y-%m-%d %H:%M:%S").timestamp()
+        dt = ts - now
+        self.assertTrue(dt < 1.0)
+
 
 
 @unittest.skipUnless(remote_server is not None, "no remote server specified")
