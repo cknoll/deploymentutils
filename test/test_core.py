@@ -60,6 +60,12 @@ except (FileNotFoundError, decouple.UndefinedValueError, NoRemote):
     remote_user = None
 
 
+if "--no-rsync" in args:
+    no_rsync = True
+else:
+    no_rsync = False
+
+
 @contextmanager
 def captured_output():
     """
@@ -178,6 +184,7 @@ class TC1(unittest.TestCase):
         res = c.run("echo $TEST_ENV_VAR", target_spec="local")
         self.assertIn("ABC-XYZ", res.stdout)
 
+    @unittest.skipIf(no_rsync, "option --no-rsync specified")
     def test_rsync_upload(self):
 
         c = StateConnection(remote=None, user=None, target="local")

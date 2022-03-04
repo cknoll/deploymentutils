@@ -13,7 +13,7 @@ steps:
   - pip install -e .
 
   # run the tests
-  - python3 test/test_core.py --no-remote
+  - python3 test/test_core.py --no-remote --no-rsync
 
   # test whether the current version on pypy can be installed
   - pip uninstall --yes deploymentutils
