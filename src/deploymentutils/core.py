@@ -461,6 +461,7 @@ class StateConnection(object):
         printonly=False,
         tol_nonzero_exit=False,
         delete=False,
+        additional_flags="",
     ):
         """
         Perform the appropriate rsync command (or not), depending on self.target and target_spec.
@@ -472,6 +473,7 @@ class StateConnection(object):
         :param printonly:
         :param tol_nonzero_exit:    boolean; tolerate nonzero exit code
         :param delete:              insert the --delete flag
+        :param additional_flags:    possibility to add more flags
         :return:
         """
 
@@ -489,6 +491,7 @@ class StateConnection(object):
             printonly=printonly,
             tol_nonzero_exit=tol_nonzero_exit,
             delete=delete,
+            additional_flags=additional_flags,
         )
 
     def rsync_download(
@@ -500,6 +503,7 @@ class StateConnection(object):
         printonly=False,
         tol_nonzero_exit=False,
         delete=False,
+        additional_flags="",
     ):
         """
         Perform the appropriate rsync command (or not), depending on self.target and target_spec.
@@ -511,6 +515,7 @@ class StateConnection(object):
         :param printonly:
         :param tol_nonzero_exit:    boolean; tolerate nonzero exit code
         :param delete:              insert the --delete flag
+        :param additional_flags:    possibility to add more flags
         :return:
         """
 
@@ -528,6 +533,7 @@ class StateConnection(object):
             printonly=printonly,
             tol_nonzero_exit=tol_nonzero_exit,
             delete=delete,
+            additional_flags=additional_flags,
         )
 
     def _rsync_call(
@@ -539,6 +545,7 @@ class StateConnection(object):
         printonly=False,
         tol_nonzero_exit=False,
         delete=False,
+        additional_flags="",
     ):
 
         if delete is True:
@@ -546,11 +553,15 @@ class StateConnection(object):
         else:
             d = ""
 
-        if self.target == "remote":
-            cmd_start = f"rsync -pthrvz{d} --rsh='ssh  -p 22'"
-        else:
-            cmd_start = f"rsync -pthrvz{d}"
+        if additional_flags:
+            additional_flags = f" {additional_flags.lstrip()}"
 
+        if self.target == "remote":
+            cnctn = " --rsh='ssh  -p 22'"
+        else:
+            cnctn = ""
+
+        cmd_start = f"rsync -pthrvz{d}{additional_flags}{cnctn}"
         cmd = f"{cmd_start} {filters} {source} {dest}"
 
         if printonly:
