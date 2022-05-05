@@ -76,6 +76,16 @@ The scripts marked with [*] make use of this module.
 Still under development and not comprehensively tested.
 
 
+## Features
+
+
+- Create `config-example.ini` from an existing `config-production.ini` (which contains additional example values).
+    - `python -c "import deploymentutils as du; print(du.remove_secrets_from_config('config-production.ini'))"`
+    - See `test/test_config.ini` and unittests for details.
+
+
+
+
 ## Known Issues
 
 - If a command started by `c.run("some_command")` is reading input, then the calling python process waits 'forever', i.e. until interrupted manually.
