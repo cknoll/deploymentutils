@@ -303,7 +303,7 @@ class StateConnection(object):
         :param use_dir:         boolean flag whether or not to use self.dir
         :param use_venv:        boolean flag whether or not to use self.venv_path
         :param hide:            see docs of invoke {"out", "err", True, False}
-        :param warn:            see docs of invoke and handling of "smart" bewlow
+        :param warn:            see docs of invoke and handling of "smart" below
         :param printonly:       flag for debugging
         :param target_spec:     str; default: "remote"
         :return:
@@ -877,7 +877,12 @@ def remove_secrets_from_config(path, new_path=None):
         fulltext_lines = inifile.readlines()
     keys = config["settings"].keys()
 
-    critical_keys = [k for k in keys if (("pass" in k.lower()) or ("key" in k.lower())) and not k.endswith("__EXAMPLE")]
+    critical_keys = []
+    for k in keys:
+        kl = k.lower()
+        if (("pass" in kl) or ("key" in kl) or "secret" in kl) and not k.endswith("__EXAMPLE"):
+            critical_keys.append(k)
+
     keys_with_example_values = [k.replace("__EXAMPLE", "") for k in keys if k.endswith("__EXAMPLE")]
 
     critical_keys_with_example_values = set(critical_keys).intersection(keys_with_example_values)
