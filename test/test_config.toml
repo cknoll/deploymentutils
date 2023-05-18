@@ -37,3 +37,5 @@ testvalue2__EXAMPLE = "this is also OK to be published"
 testvalue8 = "value inside a TOML table"
 testvalue9 = true
 testvalue10 = false
+
+# XXX secret-test

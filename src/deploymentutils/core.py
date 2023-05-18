@@ -940,13 +940,14 @@ def remove_secrets_from_config(path, new_path=None):
         msg = f"Unexpected file type (neither .ini nor .toml): of {path}"
         raise TypeError(msg)
 
+    check_nested_dicts(config.settings_dict, level=0)
+
     with open(path) as fp:
         fulltext_lines = fp.readlines()
 
     critical_keys = []
     for k in keys:
-        kl = k.lower()
-        if (("pass" in kl) or ("key" in kl) or ("secret" in kl)) and not k.endswith("__EXAMPLE"):
+        if contains_critical_token(k) and not k.endswith("__EXAMPLE"):
             critical_keys.append(k)
 
     keys_with_example_values = [k.replace("__EXAMPLE", "") for k in keys if k.endswith("__EXAMPLE")]
@@ -1011,6 +1012,21 @@ def remove_secrets_from_config(path, new_path=None):
     print("File written", new_path)
     return new_path
 
+def contains_critical_token(keystr):
+    kl = keystr.lower()
+    return (("pass" in kl) or ("key" in kl) or ("secret" in kl))
+
+def check_nested_dicts(some_dict, level):
+    for key, value in some_dict.items():
+        if isinstance(value, dict):
+            if contains_critical_token(key):
+                msg = f"{key} is not allowed as name of a table (cannot remove secrets)"
+                raise ValueError(msg)
+            else:
+                check_nested_dicts(value, level+1)
+        elif level > 0 and contains_critical_token(key):
+            msg = f"{key} is not allowed as name of a table entry (cannot remove secrets)"
+            raise ValueError(msg)
 
 # noinspection PyShadowingBuiltins
 def get_deployment_date(fpath: str, format="%Y-%m-%d %H:%M:%S") -> str:
