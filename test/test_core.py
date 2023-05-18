@@ -336,8 +336,10 @@ class TC1(unittest.TestCase):
 
         self.assertNotEqual(secret_config("test_pass1"), public_config("test_pass1"))
         self.assertNotEqual(secret_config("test_key1"), public_config("test_key1"))
+        self.assertNotEqual(secret_config("test_secret1"), public_config("test_secret1"))
         self.assertIn("--example-secret--", public_config("test_pass1"))
         self.assertIn("--example-secret--", public_config("test_key1"))
+        self.assertIn("--example-secret--", public_config("test_secret1"))
 
         example_value1 = secret_config("testvalue1__EXAMPLE")
         example_value2 = secret_config("testvalue2__EXAMPLE")
