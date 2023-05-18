@@ -422,6 +422,9 @@ class TC1b(LocalFileDeletingTestCase):
         self.assertEqual(config("PROJECT_NAME"), "bob")
         self.assertEqual(config("deployment_path"), "/home/alice/bob-deployment")
 
+        # test both features combined (variables substitution with convenient table access)
+        self.assertEqual(config("table1::path"), "/home/carla/subdir")
+
         self.assertEqual(config("testvalue6"), "production_option")
         self.assertEqual(config("testvalue6__DEVMODE"), "development_option")
         self.assertEqual(config("testvalueX__DEVMODE"), "does not exist for production")

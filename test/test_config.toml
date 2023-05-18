@@ -46,6 +46,8 @@ testvalue8 = "value inside a TOML table"
 testvalue9 = true
 testvalue10 = false
 testvalue11_key = "secret inside table"
+user = "carla"
+path = "/home/%(table1::user)s/subdir"
 
 [table2.innertable.X.Y]
 testvalue12 = "OK"
