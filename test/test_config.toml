@@ -45,3 +45,6 @@ testvalue8 = "value inside a TOML table"
 testvalue9 = true
 testvalue10 = false
 testvalue11_key = "secret inside table"
+
+[settings.table2.innertable.X.Y]
+testvalue12 = "OK"

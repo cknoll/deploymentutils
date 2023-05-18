@@ -403,6 +403,18 @@ class TC1b(LocalFileDeletingTestCase):
         self.assertEqual(tab["testvalue9"], True)
         self.assertEqual(tab["testvalue10"], False)
 
+        # test convenience syntax for for table access
+        self.assertEqual(config("table1::testvalue8"), "value inside a TOML table")
+        self.assertEqual(config("table2::innertable::X::Y::testvalue12"), "OK")
+        self.assertEqual(config("table2::innertable::X::Y"), {"testvalue12": "OK"})
+
+        # TypeError because table1.testvalue8 is not a dict
+        self.assertRaises(TypeError, config, "table1::testvalue8::X")
+        self.assertRaises(KeyError, config, "table2::innertable::X::Z_does_not_exist")
+        self.assertEqual(config("table2::innertable::X::Z_does_not_exist", ignore_undefined=True), None)
+        self.assertEqual(config("table2::innertable::X::Z_does_not_exist", ignore_undefined=True, default=5), 5)
+        self.assertEqual(config("table2::innertable::Z_does_not_exist", ignore_undefined=True, default=5), 5)
+
         self.assertEqual(config("testvalue_empty_str"), "")
 
         # test variable substitution

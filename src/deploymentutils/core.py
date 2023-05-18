@@ -810,16 +810,52 @@ class TOMLConfig(object):
     def _cast_do_nothing(value):
         return value
 
+    def _get_table_content(self, key):
+        """
+        assume key = "table1::entryname" -> resolve the "::"-separated parts
+        """
+        assert key not in self.settings_dict
+
+        current_dict = self.settings_dict
+        parts = key.split("::")
+        len_parts = len(parts)
+
+        used_parts = []
+
+        for i, part_key in enumerate(parts, start=1):
+            res = current_dict[part_key]
+
+            if i == len_parts:
+                return res
+
+            used_parts.append(part_key)
+            if not isinstance(res, dict):
+                msg = (
+                    f"the partial key {'::'.join(used_parts)} does not adress a table "
+                    "but is of type {type(res)} instead"
+                )
+                raise TypeError(msg)
+
+            current_dict = res
+
     def get(self, key, ignore_undefined=False, default=None):
         """
-        Return the value for option or default if defined.
+        Return the value for option or default if allowed.
         """
 
-        try:
+        if key in self.settings_dict:
             value = self.settings_dict[key]
-        except KeyError:
+        elif "::" in key:
+            try:
+                value = self._get_table_content(key)
+            except KeyError:
+                if not ignore_undefined:
+                    raise
+                value = default
+        else:
             if not ignore_undefined:
-                raise
+                raise KeyError(key)
+
             value = default
 
         if not isinstance(value, str):
