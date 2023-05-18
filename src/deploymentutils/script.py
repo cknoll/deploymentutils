@@ -1,5 +1,6 @@
 import argparse
 from . import core
+from . import release
 from ipydex import IPS, activate_ips_on_exception
 
 activate_ips_on_exception()
@@ -22,8 +23,13 @@ def main():
         "--output", "-o", help="optional output file", default=None
     )
 
+    argparser.add_argument("--version", help="print version and exit", action='store_true')
+
     args = argparser.parse_args()
 
+    if args.version:
+        print(release.__version__)
+        exit()
     if args.remove_secrets_from_config:
         core.remove_secrets_from_config(args.remove_secrets_from_config, new_path=args.output)
 
