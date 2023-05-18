@@ -494,7 +494,7 @@ class TC1b(LocalFileDeletingTestCase):
             full_text = fp.read()
 
         # introduce a secret value indicator as table name
-        bad_full_text = full_text.replace("[settings.table1]", '[settings.secret_table1]')
+        bad_full_text = full_text.replace("[table1]", '[secret_table1]')
 
         with open(new_path, "w") as fp:
             fp.write(bad_full_text)

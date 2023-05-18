@@ -804,7 +804,7 @@ class TOMLConfig(object):
 
         with open(fpath, "rb") as fp:
             complete_dict = tomllib.load(fp)
-            self.settings_dict = complete_dict["settings"]
+            self.settings_dict = complete_dict
 
     @staticmethod
     def _cast_do_nothing(value):
@@ -846,6 +846,7 @@ class TOMLConfig(object):
         if key in self.settings_dict:
             value = self.settings_dict[key]
         elif "::" in key:
+            # Note: we use "::" instead of "." as table separator because some table name are urls (containing ".")
             try:
                 value = self._get_table_content(key)
             except KeyError:

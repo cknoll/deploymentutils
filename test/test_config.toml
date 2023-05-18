@@ -1,4 +1,5 @@
-[settings]
+# Note: there is not top level section like [settings]
+
 # this is a comment
 # see also: https://docs.python.org/3/library/configparser.html#supported-ini-file-structure
 testvalue1__EXAMPLE = "this is OK to be published"
@@ -40,11 +41,11 @@ deployment_path = "/home/%(user)s/%(PROJECT_NAME)s-deployment"
 
 # for testing tables:
 
-[settings.table1]
+[table1]
 testvalue8 = "value inside a TOML table"
 testvalue9 = true
 testvalue10 = false
 testvalue11_key = "secret inside table"
 
-[settings.table2.innertable.X.Y]
+[table2.innertable.X.Y]
 testvalue12 = "OK"
