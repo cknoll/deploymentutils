@@ -472,15 +472,8 @@ class TC1b(LocalFileDeletingTestCase):
         self.assertEqual(public_config("test_key2"), secret_config("test_key2__EXAMPLE"))
 
         # check tables:
-        with open(CONFIG_FNAME_TOML) as fp:
+        with open(os.path.join(DIR_OF_THIS_FILE, CONFIG_FNAME_TOML)) as fp:
             full_text = fp.read()
-
-        # introduce a secret value inside a table
-        bad_full_text = full_text.replace("# XXX secret-test", 'testvalue11_key = "secret inside table"')
-
-        with open(new_path, "w") as fp:
-            fp.write(bad_full_text)
-        self.assertRaises(ValueError, du.remove_secrets_from_config, new_path)
 
         # introduce a secret value indicator as table name
         bad_full_text = full_text.replace("[settings.table1]", '[settings.secret_table1]')

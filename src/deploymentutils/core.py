@@ -940,8 +940,6 @@ def remove_secrets_from_config(path, new_path=None):
         msg = f"Unexpected file type (neither .ini nor .toml): of {path}"
         raise TypeError(msg)
 
-    check_nested_dicts(config.settings_dict, level=0)
-
     with open(path) as fp:
         fulltext_lines = fp.readlines()
 
@@ -952,10 +950,13 @@ def remove_secrets_from_config(path, new_path=None):
 
     keys_with_example_values = [k.replace("__EXAMPLE", "") for k in keys if k.endswith("__EXAMPLE")]
 
-    critical_keys_with_example_values = set(critical_keys).intersection(keys_with_example_values)
-    critical_keys = list(set(critical_keys) - set(keys_with_example_values))
+    more_critical_keys = process_nested_dicts(config.settings_dict, level=0)
+
+    # critical_keys_with_example_values = set(critical_keys).intersection(keys_with_example_values)
+    critical_keys = list(set(critical_keys + more_critical_keys) - set(keys_with_example_values))
 
     action_keys = critical_keys + keys_with_example_values
+
     result_lines = []
 
     for line in fulltext_lines:
@@ -1016,18 +1017,22 @@ def contains_critical_token(keystr):
     kl = keystr.lower()
     return (("pass" in kl) or ("key" in kl) or ("secret" in kl))
 
-def check_nested_dicts(some_dict, level):
+def process_nested_dicts(some_dict, level) -> list:
+    """
+    iterate over nested tables
+    return a list of critical keys
+    """
+    result = []
     for key, value in some_dict.items():
         if isinstance(value, dict):
             if contains_critical_token(key):
                 msg = f"{key} is not allowed as name of a table (cannot remove secrets)"
                 raise ValueError(msg)
             else:
-                check_nested_dicts(value, level+1)
+                result.extend(process_nested_dicts(value, level+1))
         elif level > 0 and contains_critical_token(key):
-            msg = f"{key} is not allowed as name of a table entry (cannot remove secrets)"
-            raise ValueError(msg)
-
+            result.append(key)
+    return result
 # noinspection PyShadowingBuiltins
 def get_deployment_date(fpath: str, format="%Y-%m-%d %H:%M:%S") -> str:
     """
