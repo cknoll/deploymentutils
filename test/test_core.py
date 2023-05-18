@@ -24,6 +24,13 @@ run tests locally with:
 `export NOREMOTE=True; python -m unittest`
 or
 `export NOREMOTE=True; rednose`
+`export NOREMOTE=True; pytest -s`
+
+to run with remote access, unlock the ssh key and use e.g
+`pytest -s`
+
+
+
 """
 
 DIR_OF_THIS_FILE = os.path.dirname(os.path.abspath(sys.modules.get(__name__).__file__))
@@ -34,6 +41,7 @@ TESTJSONDATADIR = os.path.join(DIR_OF_THIS_FILE, "_test_json_data")
 
 # noinspection PyPep8Naming
 CONFIG_FNAME = "test_config.ini"
+CONFIG_FNAME_TOML = "test_config.toml"
 
 
 class NoRemote(Exception):
@@ -81,7 +89,7 @@ def captured_output():
         sys.stdout, sys.stderr = old_out, old_err
 
 
-class TC1(unittest.TestCase):
+class LocalFileDeletingTestCase(unittest.TestCase):
     def setUp(self):
         self.local_files_to_delete = []
 
@@ -89,6 +97,8 @@ class TC1(unittest.TestCase):
         for path in self.local_files_to_delete:
             os.unlink(path)
 
+
+class TC1(LocalFileDeletingTestCase):
     def test_get_dir_of_this_file(self):
         test_path = get_dir_of_this_file()
 
@@ -266,10 +276,10 @@ class TC1(unittest.TestCase):
             start_dir=DIR_OF_THIS_FILE,
             limit=1,
         )
+        self.local_files_to_delete.append(target_path)
 
         config2 = du.get_nearest_config(target_name, start_dir=DIR_OF_THIS_FILE, limit=2)
         self.assertEqual(config2("testvalue1"), "OK")
-        os.remove(target_path)
 
         abspath = "/does/not/exist.ini"
 
@@ -367,6 +377,70 @@ class TC1(unittest.TestCase):
         self.assertEqual(dep_date, "<not available>")
 
 
+
+class TC1b(LocalFileDeletingTestCase):
+    def test_get_nearest_config_toml(self):
+
+        # explicitly passing start_dir seems only necessary in unittests
+
+        config = du.get_nearest_config(CONFIG_FNAME_TOML, start_dir=DIR_OF_THIS_FILE)
+
+        self.assertEqual(config("testvalue1"), "OK")
+        self.assertEqual(config("testvalue2"), "Very OK")
+        self.assertEqual(config("testvalue3"), "Robust=OK")
+        self.assertEqual(config("testvalue4"), '"Quoted String"')
+        self.assertEqual(config("testvalue5"), "Spaces are acceptable")
+        self.assertEqual(config("testvalue_number"), 1234.567)
+
+        # arrays are a special feature of TOML; no need for CSV
+        self.assertEqual(
+            config("testvalue_array"), ["string1", "string2", "some more words"]
+        )
+        # tables are a special feature of TOML; -> result in a dict
+
+        tab = config("table1")
+        self.assertEqual(tab["testvalue8"], "value inside a TOML table")
+        self.assertEqual(tab["testvalue9"], True)
+        self.assertEqual(tab["testvalue10"], False)
+
+        self.assertEqual(config("testvalue_empty_str"), "")
+        self.assertEqual(config("testvalue6"), "production_option")
+        self.assertEqual(config("testvalue6__DEVMODE"), "development_option")
+        self.assertEqual(config("testvalueX__DEVMODE"), "does not exist for production")
+
+        self.assertRaises(KeyError, config, "testvalueX")
+
+        config_dev = du.get_nearest_config(CONFIG_FNAME_TOML, devmode=True, start_dir=DIR_OF_THIS_FILE)
+        self.assertEqual(config_dev("testvalue6"), "development_option")
+
+        # now make a copy of the config file and place it in a parent dir
+
+        target_name = CONFIG_FNAME_TOML.replace(".toml", "_toml.ini")
+        target_path = os.path.join(DIR_OF_THIS_FILE, "..", "..", target_name)
+        self.assertRaises(FileNotFoundError, du.get_nearest_config, fname=target_name)
+
+        source_path = os.path.join(DIR_OF_THIS_FILE, CONFIG_FNAME)
+
+        shutil.copy2(source_path, target_path)
+        self.assertRaises(
+            FileNotFoundError,
+            du.get_nearest_config,
+            fname=target_name,
+            start_dir=DIR_OF_THIS_FILE,
+            limit=1,
+        )
+        self.local_files_to_delete.append(target_path)
+
+        config2 = du.get_nearest_config(target_name, start_dir=DIR_OF_THIS_FILE, limit=2)
+        self.assertEqual(config2("testvalue1"), "OK")
+
+        abspath = "/does/not/exist.ini"
+
+        self.assertRaises(FileNotFoundError, du.get_nearest_config, fname=abspath, start_dir=None)
+
+        abspath = os.path.join(DIR_OF_THIS_FILE, "test_config.toml")
+        config3 = du.get_nearest_config(abspath)
+        self.assertEqual(config3("testvalue1"), "OK")
 
 
 @unittest.skipUnless(remote_server is not None, "no remote server specified")

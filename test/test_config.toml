@@ -1,0 +1,39 @@
+[settings]
+# this is a comment
+# see also: https://docs.python.org/3/library/configparser.html#supported-ini-file-structure
+testvalue1__EXAMPLE = "this is OK to be published"
+testvalue1 = "OK"
+
+test_pass1 = "very-secret"
+test_key1 = "very-secret"
+test_secret1 = "very-secret"
+
+test_key2 = "very-secret"
+test_key2__EXAMPLE = "not-so-secret"
+
+
+testvalue2 = "Very OK"
+testvalue3 = "Robust=OK"
+
+# single quotes are literal strings in TOML
+testvalue4 = '"Quoted String"'
+testvalue5 = "Spaces are acceptable"
+testvalue6 = "production_option"
+testvalue6__DEVMODE = "development_option"
+
+# test for a bug: when key occurs in value:
+testvalue7 = "string conatining testvalue1"
+
+
+testvalueX__DEVMODE = "does not exist for production"
+testvalue_array = ["string1", "string2", "some more words"]
+testvalue_number = 1234.567
+testvalue_empty_str = ""
+
+
+testvalue2__EXAMPLE = "this is also OK to be published"
+
+[settings.table1]
+testvalue8 = "value inside a TOML table"
+testvalue9 = true
+testvalue10 = false

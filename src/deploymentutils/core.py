@@ -721,7 +721,7 @@ def get_nearest_config(
 
     :return:    config object from decoupl module
     """
-    assert fname.endswith(".ini")
+    assert fname.endswith(".ini") or fname.endswith(".toml")
 
     path0, fname = os.path.split(fname)
 
@@ -755,27 +755,76 @@ def get_nearest_config(
         raise FileNotFoundError(msg)
 
     # this is kept local to keep the dependency optional
-    from decouple import Config, RepositoryIni, Csv
 
-    config = Config(RepositoryIni(path))
+    if fname.endswith(".ini"):
+        from decouple import Config, RepositoryIni, Csv
+        config = Config(RepositoryIni(path))
+        config.settings_dict = config.repository.parser.__dict__["_sections"]["settings"]
+        config.Csv = Csv
+    elif fname.endswith(".toml"):
+        config = TOMLConfig(path)
 
     if devmode:
-        relevant_dict = config.repository.parser.__dict__["_sections"]["settings"]
-        for key, value in relevant_dict.items():
+        for key, value in config.settings_dict.items():
             # it seems that keys are converted to lowercase automatically
-            if key.endswith("__devmode"):
+            if "__" in key:
+                suffix = key.split("__")[-1]
+            else:
+                suffix = None
+            if suffix in ("devmode", "DEVMODE"):
 
                 # use the value specified for the development-mode for the actual variable (if it exists)
-                main_key = key.replace("__devmode", "")
-                if main_key in relevant_dict:
-                    relevant_dict[main_key] = value
+                main_key = key.replace(f"__{suffix}", "")
+                if main_key in config.settings_dict:
+                    config.settings_dict[main_key] = value
 
     # enable convenient access to Csv parser and actual path of the file
-    config.Csv = Csv
     config.path = os.path.abspath(path)
 
     os.chdir(old_dir)
     return config
+
+
+# based on decouple.Config
+class TOMLConfig(object):
+    """
+    Handle .toml file format used by Foreman.
+    """
+
+    def __init__(self, fpath):
+        try:
+            # this will be part of standard library for python >= 3.11
+            import tomllib
+        except ModuleNotFoundError:
+            import tomli as tomllib
+
+        with open(fpath, "rb") as fp:
+            complete_dict = tomllib.load(fp)
+            self.settings_dict = complete_dict["settings"]
+
+    @staticmethod
+    def _cast_do_nothing(value):
+        return value
+
+    def get(self, key, ignore_undefined=False, default=None):
+        """
+        Return the value for option or default if defined.
+        """
+
+        try:
+            value = self.settings_dict[key]
+        except KeyError:
+            if not ignore_undefined:
+                raise
+            value = default
+
+        return value
+
+    def __call__(self, *args, **kwargs):
+        """
+        Convenient shortcut to get.
+        """
+        return self.get(*args, **kwargs)
 
 
 def set_repo_tag(
