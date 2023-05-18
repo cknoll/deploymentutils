@@ -902,8 +902,10 @@ def ensure_http_response(url, expected_status_code=200, sleep=0):
 
 def remove_secrets_from_config(path, new_path=None):
     """
-    Parse the ini file at `path` and create a copy where every non-comment line containing `pass` or `key`
+    Parse the ini/toml file at `path` and create a copy where every non-comment line containing `pass` or `key`
     has a dummy value.
+
+    NOTE: This function has no support for multiline assignments (allowed by toml)
 
     Use case: When developing deployment software with deployment tools, one often wants to share the
     general configuration but not the secrets. This function serves to automate this process.
@@ -916,20 +918,35 @@ def remove_secrets_from_config(path, new_path=None):
 
     :return:            `new_path`
     """
-    assert path.endswith(".ini")
+    if path.endswith(".ini"):
+        fname_suffix = ".ini"
 
-    config = configparser.ConfigParser()
-    config.optionxform = str  # preserve case when parsing the keys (non-default)
-    config.read(path)
+        # for ini-format: strings should not be quoted
+        quote_func = lambda x: x
 
-    with open(path) as inifile:
-        fulltext_lines = inifile.readlines()
-    keys = config["settings"].keys()
+        config = configparser.ConfigParser()
+        config.optionxform = str  # preserve case when parsing the keys (non-default)
+        config.read(path)
+        keys = config["settings"].keys()
+        config.settings_dict = config["settings"]
+
+    elif path.endswith(".toml"):
+        fname_suffix = ".toml"
+        # for tomk-format: strings should be quoted
+        quote_func = repr
+        config = TOMLConfig(path)
+        keys = config.settings_dict.keys()
+    else:
+        msg = f"Unexpected file type (neither .ini nor .toml): of {path}"
+        raise TypeError(msg)
+
+    with open(path) as fp:
+        fulltext_lines = fp.readlines()
 
     critical_keys = []
     for k in keys:
         kl = k.lower()
-        if (("pass" in kl) or ("key" in kl) or "secret" in kl) and not k.endswith("__EXAMPLE"):
+        if (("pass" in kl) or ("key" in kl) or ("secret" in kl)) and not k.endswith("__EXAMPLE"):
             critical_keys.append(k)
 
     keys_with_example_values = [k.replace("__EXAMPLE", "") for k in keys if k.endswith("__EXAMPLE")]
@@ -945,8 +962,9 @@ def remove_secrets_from_config(path, new_path=None):
         line = line.lstrip(" ")
         line_parts = line.split("=")
         for ak in action_keys:
-            # if line[:len(ck)] == ck:
-            if ak in line_parts[0]:
+            key_str = line_parts[0].strip()
+
+            if ak == key_str or key_str.replace(ak, "").startswith("__"):
                 # action-key found, no need to search further in this line
                 break
         else:
@@ -956,7 +974,7 @@ def remove_secrets_from_config(path, new_path=None):
             result_lines.append(line)
             continue
 
-        assert ak in line_parts[0]
+        assert ak in key_str
         if line.startswith("#"):
             # ignore this line (this might omit useful comments, but safety first!)
             continue
@@ -964,7 +982,7 @@ def remove_secrets_from_config(path, new_path=None):
         if ak in critical_keys:
             n = 10
             xx = secrets.token_urlsafe(2 * n)
-            new_line = f"{ak} = {xx[:n]}--example-secret--{xx[n:]}\n"
+            new_line = f'{ak} = "{xx[:n]}--example-secret--{xx[n:]}"\n'
             result_lines.append(new_line)
         else:
             assert ak in keys_with_example_values
@@ -972,8 +990,8 @@ def remove_secrets_from_config(path, new_path=None):
                 # do not add the example-key-value-line to the output
                 # but only the real key with the example value
                 continue
-            example_value = config["settings"][f"{ak}__EXAMPLE"]
-            new_line = f"{ak} = {example_value}\n"
+            example_value = config.settings_dict[f"{ak}__EXAMPLE"]
+            new_line = f"{ak} = {quote_func(example_value)}\n"
             result_lines.append(new_line)
             # replacement_lines.append((ak, new_line))
 
@@ -981,7 +999,7 @@ def remove_secrets_from_config(path, new_path=None):
         if "production" in path:
             new_path = path.replace("production", "example")
         else:
-            new_path = path.replace(".ini", "-example.ini")
+            new_path = path.replace(fname_suffix, f"-example{fname_suffix}")
     else:
         if new_path == path:
             raise ValueError("new_path must be different from original path")

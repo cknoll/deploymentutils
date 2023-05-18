@@ -442,6 +442,35 @@ class TC1b(LocalFileDeletingTestCase):
         config3 = du.get_nearest_config(abspath)
         self.assertEqual(config3("testvalue1"), "OK")
 
+    def test_remove_secrets_from_config_toml(self):
+
+        # explicitly passing start_dir seems only necessary in unittests
+        secret_config = du.get_nearest_config(CONFIG_FNAME_TOML, start_dir=DIR_OF_THIS_FILE)
+
+        new_path = du.remove_secrets_from_config(secret_config.path)
+        self.local_files_to_delete.append(new_path)
+        public_config = du.get_nearest_config(new_path)
+
+        self.assertEqual(secret_config("testvalue5"), public_config("testvalue5"))
+
+        self.assertNotEqual(secret_config("test_pass1"), public_config("test_pass1"))
+        self.assertNotEqual(secret_config("test_key1"), public_config("test_key1"))
+        self.assertNotEqual(secret_config("test_secret1"), public_config("test_secret1"))
+        self.assertIn("--example-secret--", public_config("test_pass1"))
+        self.assertIn("--example-secret--", public_config("test_key1"))
+        self.assertIn("--example-secret--", public_config("test_secret1"))
+
+        example_value1 = secret_config("testvalue1__EXAMPLE")
+        example_value2 = secret_config("testvalue2__EXAMPLE")
+        self.assertRaises(KeyError, public_config, "testvalue1__EXAMPLE")
+        self.assertRaises(KeyError, public_config, "testvalue2__EXAMPLE")
+
+        self.assertEqual(example_value1, public_config("testvalue1"))
+        self.assertEqual(example_value2, public_config("testvalue2"))
+        self.assertEqual(public_config("testvalue7"), "string conatining testvalue1")
+
+        self.assertEqual(public_config("test_key2"), secret_config("test_key2__EXAMPLE"))
+
 
 @unittest.skipUnless(remote_server is not None, "no remote server specified")
 class TC2(unittest.TestCase):
