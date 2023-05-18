@@ -404,6 +404,12 @@ class TC1b(LocalFileDeletingTestCase):
         self.assertEqual(tab["testvalue10"], False)
 
         self.assertEqual(config("testvalue_empty_str"), "")
+
+        # test variable substitution
+        self.assertEqual(config("user"), "alice")
+        self.assertEqual(config("PROJECT_NAME"), "bob")
+        self.assertEqual(config("deployment_path"), "/home/alice/bob-deployment")
+
         self.assertEqual(config("testvalue6"), "production_option")
         self.assertEqual(config("testvalue6__DEVMODE"), "development_option")
         self.assertEqual(config("testvalueX__DEVMODE"), "does not exist for production")

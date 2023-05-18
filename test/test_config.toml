@@ -30,8 +30,15 @@ testvalue_array = ["string1", "string2", "some more words"]
 testvalue_number = 1234.567
 testvalue_empty_str = ""
 
-
 testvalue2__EXAMPLE = "this is also OK to be published"
+
+# for testing internal variables (this is not a TOML feature but is emulated by deploymentutils)
+user = "alice"
+PROJECT_NAME = "bob"
+
+deployment_path = "/home/%(user)s/%(PROJECT_NAME)s-deployment"
+
+# for testing tables:
 
 [settings.table1]
 testvalue8 = "value inside a TOML table"

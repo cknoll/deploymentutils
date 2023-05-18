@@ -3,6 +3,7 @@ from typing import List, Union
 from typing_extensions import Literal  # for py3.7 support
 import inspect
 import subprocess
+import re
 import argparse
 import datetime
 import json
@@ -798,6 +799,9 @@ class TOMLConfig(object):
         except ModuleNotFoundError:
             import tomli as tomllib
 
+        # variable substitution regex
+        self.vsre = re.compile("%\((.+?)\)s")
+
         with open(fpath, "rb") as fp:
             complete_dict = tomllib.load(fp)
             self.settings_dict = complete_dict["settings"]
@@ -817,6 +821,25 @@ class TOMLConfig(object):
             if not ignore_undefined:
                 raise
             value = default
+
+        if not isinstance(value, str):
+            return value
+
+        matches = list(self.vsre.finditer(value))
+        if matches:
+            start_idx = 0
+            new_value_parts = []
+            for match in matches:
+                new_value_parts.append(value[start_idx:match.start()])
+
+                var_name = match.groups(1)[0]
+                var_value = self.get(var_name)
+                new_value_parts.append(var_value)
+                start_idx = match.end()
+
+            # add the part after the last match
+            new_value_parts.append(value[start_idx:])
+            value = "".join(new_value_parts)
 
         return value
 
