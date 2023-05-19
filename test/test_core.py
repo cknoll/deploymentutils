@@ -424,6 +424,8 @@ class TC1b(LocalFileDeletingTestCase):
 
         # test both features combined (variables substitution with convenient table access)
         self.assertEqual(config("table1::path"), "/home/carla/subdir")
+        tab = config("table1")
+        self.assertEqual(tab["path"], "/home/carla/subdir")
 
         self.assertEqual(config("testvalue6"), "production_option")
         self.assertEqual(config("testvalue6__DEVMODE"), "development_option")
@@ -497,10 +499,11 @@ class TC1b(LocalFileDeletingTestCase):
             full_text = fp.read()
 
         # introduce a secret value indicator as table name
-        bad_full_text = full_text.replace("[table1]", '[secret_table1]')
+        bad_addition = '\n\n[secret_table1]\nvalue = 1'
 
         with open(new_path, "w") as fp:
-            fp.write(bad_full_text)
+            fp.write(full_text)
+            fp.write(bad_addition)
         self.assertRaises(ValueError, du.remove_secrets_from_config, new_path)
 
 

@@ -761,6 +761,7 @@ def get_nearest_config(
         from decouple import Config, RepositoryIni, Csv
         config = Config(RepositoryIni(path))
         config.settings_dict = config.repository.parser.__dict__["_sections"]["settings"]
+        # enable convenient access to Csv parser
         config.Csv = Csv
     elif fname.endswith(".toml"):
         config = TOMLConfig(path)
@@ -779,8 +780,9 @@ def get_nearest_config(
                 if main_key in config.settings_dict:
                     config.settings_dict[main_key] = value
 
-    # enable convenient access to Csv parser and actual path of the file
+    # enable convenient access to the actual path of the file and the containing directory
     config.path = os.path.abspath(path)
+    config.dirpath = os.path.dirname(os.path.abspath(path))
 
     os.chdir(old_dir)
     return config
@@ -805,6 +807,8 @@ class TOMLConfig(object):
         with open(fpath, "rb") as fp:
             complete_dict = tomllib.load(fp)
             self.settings_dict = complete_dict
+
+        self._perform_replacements(self.settings_dict)
 
     @staticmethod
     def _cast_do_nothing(value):
@@ -832,7 +836,7 @@ class TOMLConfig(object):
             if not isinstance(res, dict):
                 msg = (
                     f"the partial key {'::'.join(used_parts)} does not adress a table "
-                    "but is of type {type(res)} instead"
+                    f"but is of type {type(res)} instead"
                 )
                 raise TypeError(msg)
 
@@ -862,23 +866,37 @@ class TOMLConfig(object):
         if not isinstance(value, str):
             return value
 
-        matches = list(self.vsre.finditer(value))
-        if matches:
-            start_idx = 0
-            new_value_parts = []
-            for match in matches:
-                new_value_parts.append(value[start_idx:match.start()])
-
-                var_name = match.groups(1)[0]
-                var_value = self.get(var_name)
-                new_value_parts.append(var_value)
-                start_idx = match.end()
-
-            # add the part after the last match
-            new_value_parts.append(value[start_idx:])
-            value = "".join(new_value_parts)
-
         return value
+
+    def _perform_replacements(self, datadict: dict):
+        """
+        This methods performs all variable replacements once and for all
+        """
+
+        for key, value in datadict.items():
+            if isinstance(value, dict):
+                self._perform_replacements(value)
+            elif isinstance(value, str):
+                # perform the substitution
+                matches = list(self.vsre.finditer(value))
+                if matches:
+                    start_idx = 0
+                    new_value_parts = []
+                    for match in matches:
+                        new_value_parts.append(value[start_idx:match.start()])
+
+                        var_name = match.groups(1)[0]
+                        var_value = self.get(var_name)
+                        new_value_parts.append(var_value)
+                        start_idx = match.end()
+
+                    # add the part after the last match
+                    new_value_parts.append(value[start_idx:])
+                    # value = "".join(new_value_parts)
+                    datadict[key] = "".join(new_value_parts)
+            else:
+                # different datatype -> nothing todo
+                pass
 
     def __call__(self, *args, **kwargs):
         """
