@@ -13,6 +13,7 @@ This file contains the script entry point for the `deploymentutils` command line
 def main():
     argparser = argparse.ArgumentParser()
     argparser.add_argument(
+        "-rs",
         "--remove-secrets-from-config",
         help="Creates a new `...-example.ini` file where every "
         "variable name containing 'pass', 'key' or 'secret' is filled with a dummy-value",

@@ -978,6 +978,24 @@ def ensure_http_response(url, expected_status_code=200, sleep=0):
         return 2
 
 
+def get_example_values(data: dict) -> dict:
+    res = {}
+    for k, v in data.items():
+        if "__EXAMPLE" in k:
+            res[k] = v
+    return res
+
+
+def toml_quote(obj):
+    
+    res = repr(obj)
+    
+    if obj in [True, False]:
+        res = res.lower()
+    return res
+
+
+
 def remove_secrets_from_config(path, new_path=None):
     """
     Parse the ini/toml file at `path` and create a copy where every non-comment line containing `pass` or `key`
@@ -996,6 +1014,7 @@ def remove_secrets_from_config(path, new_path=None):
 
     :return:            `new_path`
     """
+    example_values = None
     if path.endswith(".ini"):
         fname_suffix = ".ini"
 
@@ -1007,13 +1026,33 @@ def remove_secrets_from_config(path, new_path=None):
         config.read(path)
         keys = config["settings"].keys()
         config.settings_dict = config["settings"]
+        example_values = get_example_values(config.settings_dict)
 
     elif path.endswith(".toml"):
         fname_suffix = ".toml"
-        # for tomk-format: strings should be quoted
-        quote_func = repr
+        # for toml-format: strings should be quoted
+        quote_func = toml_quote
         config = TOMLConfig(path)
-        keys = config.settings_dict.keys()
+        keys = [] 
+
+        # first: get level 0 example values
+        example_values = get_example_values(config.settings_dict)
+
+        # now get level 1 example values and also add direct keys
+        for key, value in config.settings_dict.items():
+            if isinstance(value, dict):
+                keys.extend(value.keys())
+                new_exvals = get_example_values(value)
+                for ex_key in new_exvals.keys():
+                    if ex_key in example_values:
+                        msg = (
+                            f"The key '{ex_key}' occurs in the dict '{key}' and at least one other dict. "
+                            "This is not supported by the script."
+                        )
+                        raise ValueError(msg)
+                example_values.update(new_exvals)
+            else:
+                keys.append(key)
     else:
         msg = f"Unexpected file type (neither .ini nor .toml): of {path}"
         raise TypeError(msg)
@@ -1070,7 +1109,7 @@ def remove_secrets_from_config(path, new_path=None):
                 # do not add the example-key-value-line to the output
                 # but only the real key with the example value
                 continue
-            example_value = config.settings_dict[f"{ak}__EXAMPLE"]
+            example_value = example_values[f"{ak}__EXAMPLE"]
             new_line = f"{ak} = {quote_func(example_value)}\n"
             result_lines.append(new_line)
             # replacement_lines.append((ak, new_line))
@@ -1087,7 +1126,7 @@ def remove_secrets_from_config(path, new_path=None):
     with open(new_path, "w") as inifile:
         inifile.writelines(result_lines)
 
-    print("The values for the following keys were replaced: ", ", ".join(critical_keys))
+    print("The values for the following keys were replaced: ", ", ".join(action_keys))
     print("File written", new_path)
     return new_path
 
