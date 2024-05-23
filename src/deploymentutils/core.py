@@ -8,6 +8,7 @@ import argparse
 import datetime
 import json
 import time
+import functools
 import requests
 from fabric import Connection
 from paramiko.ssh_exception import PasswordRequiredException
@@ -328,15 +329,15 @@ class StateConnection(object):
         assert target_spec in ("remote", "local", "both")
         assert self.venv_target in (None, "remote", "both")
 
-        for env_var, value in self.env_variables.items():
-            full_command_list.insert(0, ["export", f'{env_var}="{value}"'])
-
         venv_target_condition = self.venv_target == "both" or (
             target_spec != "local" and self.venv_target is not None
         )
 
         if use_venv and self.venv_path is not None and venv_target_condition:
             full_command_list.insert(0, ["source", self.venv_path])
+
+        for env_var, value in self.env_variables.items():
+            full_command_list.insert(0, ["export", f'{env_var}="{value}"'])
 
         self.last_command = full_command_list
 
@@ -702,6 +703,23 @@ def get_dir_of_this_file(upcount: int = 1, upcount_dir: int = 0):
     return dn
 
 
+def preserve_cwd(function):
+    """
+    This is a decorator that ensures that the current working directory is unchanged during the function call.
+    """
+
+    @functools.wraps(function)
+    def decorator(*args, **kwargs):
+        cwd = os.getcwd()
+        try:
+            return function(*args, **kwargs)
+        finally:
+            os.chdir(cwd)
+
+    return decorator
+
+
+@preserve_cwd
 def get_nearest_config(
     fname: str = "config.ini",
     limit: int = None,
@@ -738,7 +756,7 @@ def get_nearest_config(
 
     if start_dir is None:
         if path0 == "":
-            start_dir = get_dir_of_this_file(upcount=2)
+            start_dir = get_dir_of_this_file(upcount=3)
         else:
             start_dir = path0
     else:
@@ -876,27 +894,45 @@ class TOMLConfig(object):
         for key, value in datadict.items():
             if isinstance(value, dict):
                 self._perform_replacements(value)
+
+            elif isinstance(value, list):
+                new_value = []
+                for elt in value:
+                    if isinstance(elt, str):
+                        res = self._replace_str(elt)
+                    else:
+                        res = elt
+                    new_value.append(res)
+                datadict[key] = new_value
+
             elif isinstance(value, str):
                 # perform the substitution
-                matches = list(self.vsre.finditer(value))
-                if matches:
-                    start_idx = 0
-                    new_value_parts = []
-                    for match in matches:
-                        new_value_parts.append(value[start_idx:match.start()])
+                datadict[key] = self._replace_str(value)
 
-                        var_name = match.groups(1)[0]
-                        var_value = self.get(var_name)
-                        new_value_parts.append(var_value)
-                        start_idx = match.end()
-
-                    # add the part after the last match
-                    new_value_parts.append(value[start_idx:])
-                    # value = "".join(new_value_parts)
-                    datadict[key] = "".join(new_value_parts)
             else:
                 # different datatype -> nothing todo
                 pass
+
+    def _replace_str(self, value: str) -> str:
+        matches = list(self.vsre.finditer(value))
+        if matches:
+            start_idx = 0
+            new_value_parts = []
+            for match in matches:
+                new_value_parts.append(value[start_idx:match.start()])
+
+                var_name = match.groups(1)[0]
+                var_value = self.get(var_name)
+                new_value_parts.append(var_value)
+                start_idx = match.end()
+
+            # add the part after the last match
+            new_value_parts.append(value[start_idx:])
+            res = "".join(new_value_parts)
+        else:
+            res = value
+        return res
+
 
     def __call__(self, *args, **kwargs):
         """
@@ -987,9 +1023,9 @@ def get_example_values(data: dict) -> dict:
 
 
 def toml_quote(obj):
-    
+
     res = repr(obj)
-    
+
     if obj in [True, False]:
         res = res.lower()
     return res
@@ -1033,7 +1069,7 @@ def remove_secrets_from_config(path, new_path=None):
         # for toml-format: strings should be quoted
         quote_func = toml_quote
         config = TOMLConfig(path)
-        keys = [] 
+        keys = []
 
         # first: get level 0 example values
         example_values = get_example_values(config.settings_dict)
