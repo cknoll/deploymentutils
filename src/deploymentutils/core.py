@@ -631,16 +631,21 @@ class StateConnection(object):
 
         filters = (
             f"--exclude='.git/' "
+            f"--exclude='.aider/' "
             f"--exclude='.idea/' "
             f"--exclude='*/__pycache__/*' "
             f"--exclude='__pycache__/' "
         )
-        self.rsync_upload(local_path, "~/tmp", filters=filters, target_spec="remote")
 
         if target_path is None:
             target_path = "~/tmp"
-
         package_dir_name = os.path.split(local_path)[1]
+
+        # remove old version
+        self.run(f"rm -rf {target_path}/{package_dir_name}")
+
+        self.rsync_upload(local_path, "~/tmp", filters=filters, target_spec="remote")
+
         if package_name:
             self.run(f"{pip_command} uninstall -y {package_name}", warn=False)
 
