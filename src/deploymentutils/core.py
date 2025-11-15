@@ -45,7 +45,7 @@ class EContainer(Container):
 # the following reduces the boilerplate
 argparser = argparse.ArgumentParser()
 argparser.add_argument(
-    "target", help="deployment target: `local` or `remote`.", choices=["local", "remote"]
+    "target", help="deployment target: `local` or `remote`.", choices=["local", "remote"], default="remote"
 )
 argparser.add_argument("-u", "--unsafe", help="omit security confirmation", action="store_true")
 argparser.add_argument("-i", "--initial", help="flag for initial deployment", action="store_true")
@@ -408,6 +408,44 @@ class StateConnection(object):
         self.run(f"echo {txt_b64} | base64 -d {mode} {fpath}")
         res = self.run(f"cat {fpath}")
         return res.stdout
+
+    def edit_file(self, fpath: str, old: str, new, delete_aux_files=True):
+        s_and_r_fname = "search_and_replace.py"
+        s_and_r_fpath = f"{get_dir_of_this_file()}/{s_and_r_fname}"
+        assert os.path.isfile(s_and_r_fpath)
+
+        import tempfile
+        ts = time.strftime("%Y-%m-%d__%H-%M-%S")
+
+        old_string_fpath = tempfile.mktemp(prefix=f"du_{ts}_old_", suffix=".txt")
+        new_string_fpath = tempfile.mktemp(prefix=f"du_{ts}_new_", suffix=".txt")
+        with open(old_string_fpath, 'w', encoding='utf-8') as fp: fp.write(old)
+        with open(new_string_fpath, 'w', encoding='utf-8') as fp: fp.write(new)
+
+        target_spec = "remote"
+
+        old_string_target_path = f"~/tmp/{os.path.split(old_string_fpath)[1]}"
+        self.rsync_upload(old_string_fpath, old_string_target_path, target_spec)
+
+        # same for new
+        new_string_target_path = f"~/tmp/{os.path.split(new_string_fpath)[1]}"
+        self.rsync_upload(new_string_fpath, new_string_target_path, target_spec)
+
+
+        s_and_r_target_fpath = f"~/tmp/{s_and_r_fname}"
+        self.rsync_upload(s_and_r_fpath, s_and_r_target_fpath, target_spec)
+        self.run(f"python3 {s_and_r_target_fpath} {fpath} {old_string_target_path} {new_string_target_path}")
+
+        if delete_aux_files:
+            os.remove(old_string_fpath)
+            os.remove(new_string_fpath)
+            self.c.run(f"rm {old_string_target_path}")
+            self.c.run(f"rm {new_string_target_path}")
+
+        return old, new
+
+
+        self.rsync_upload
 
     def run_target_command(
         self, full_command_lists: List[list], hide: bool, warn: bool, target_spec: str

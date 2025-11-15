@@ -582,7 +582,7 @@ class TC2(unittest.TestCase):
         res = self.c.run("echo $TEST_ENV_VAR", target_spec="both")
         self.assertIn("ABC-XYZ", res.stdout)
 
-    def test_b060__string_to_file(self):
+    def _get_string_data1(self):
         # use a realistic string with several lines and indentation, quotes and backslashes
         test_string1 = dedent(
             r"""
@@ -599,7 +599,12 @@ class TC2(unittest.TestCase):
             eval "$(~/bin/starship init bash)"
             """
         )
-        res_file_content1 = self.c.string_to_file(test_string1, "/tmp/.bashrc")
+        return test_string1
+
+    def test_b060__string_to_file(self):
+        fpath = "~/tmp/tmpfile.txt"
+        test_string1 = self._get_string_data1()
+        res_file_content1 = self.c.string_to_file(test_string1, fpath)
         lines1 = res_file_content1.split("\n")
         self.assertEqual(lines1[1], "# make bash autocomplete with up/down arrow if in interactive mode")
         self.assertEqual(lines1[4], r"""    bind '"\e[A":history-search-backward'""")
@@ -607,7 +612,7 @@ class TC2(unittest.TestCase):
 
 
         test_string2 = "ABC\nXYZ"
-        res_file_content2 = self.c.string_to_file(test_string2, "/tmp/.bashrc", mode=">>")
+        res_file_content2 = self.c.string_to_file(test_string2, fpath, mode=">>")
         lines2 = res_file_content2.split("\n")
         self.assertEqual(lines2[1], "# make bash autocomplete with up/down arrow if in interactive mode")
         self.assertEqual(lines2[4], r"""    bind '"\e[A":history-search-backward'""")
@@ -617,6 +622,35 @@ class TC2(unittest.TestCase):
 
         # there is no newline at the end (because we added none)
         self.assertEqual(res_file_content2[-1], "Z")
+
+    def test_b070__string_to_file(self):
+        # create file to edit:
+        fpath = "~/tmp/tmpfile.txt"
+        test_string1 = self._get_string_data1()
+        res_file_content1 = self.c.string_to_file(test_string1, fpath)
+
+        old = dedent(
+            r"""
+            then
+                bind '"\e[A":history-search-backward'
+                bind '"\e[B":history-search-forward'
+            fi
+            """
+        )
+        new = dedent(
+            r"""
+            then
+                bind '"\e[A":history-search-backward'  # comment added
+                # complete new lines with imbalanced quotes and special chars "\n' \r
+                # äöü → 👍️ 😉 ⇔∃∄∈∉∞ℕ∀
+            fi
+            """
+        )
+
+        self.c.edit_file(fpath, old, new, delete_aux_files=False)
+        res = self.c.run(f"cat {fpath}")
+        self.assertEqual(res.exited, 0)
+        self.assertEqual(res.stdout.count(new), 1)
 
 
 # ######################################################################################################################
