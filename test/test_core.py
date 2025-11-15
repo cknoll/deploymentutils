@@ -652,6 +652,27 @@ class TC2(unittest.TestCase):
         self.assertEqual(res.exited, 0)
         self.assertEqual(res.stdout.count(new), 1)
 
+    def test_b080__multi_edit_file(self):
+        # create file to edit:
+        fpath = "~/tmp/tmpfile.txt"
+        test_string1 = self._get_string_data1()
+        self.c.string_to_file(test_string1, fpath)
+
+        replacements = [
+            (r"""bind '"\e[A":history-search-backward'""", r"""bond '"\e[A":history-search-backward'"""),
+            (r"""bind '"\e[B":history-search-forward'""", r"""bind '"%%foo%%:bar"""),
+            (r"""export EDITOR=mcedit""", r"""∃∄∈∉∞ℕ∀⇔👍️😉""")
+
+        ]
+        self.c.multi_edit_file(fpath, replacements, delete_aux_files=True)
+
+        res = self.c.run(f"cat {fpath}")
+        self.assertEqual(res.exited, 0)
+        self.assertEqual(res.stdout.count(replacements[0][1]), 1)
+        self.assertEqual(res.stdout.count(replacements[1][1]), 1)
+        self.assertEqual(res.stdout.count(replacements[2][1]), 1)
+
+
 
 # ######################################################################################################################
 

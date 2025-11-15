@@ -410,6 +410,15 @@ class StateConnection(object):
         return res.stdout
 
     def edit_file(self, fpath: str, old: str, new, delete_aux_files=True):
+        """
+        upload `old` and `new` to remote site and then run `search_and_replace.py`
+
+        :param fpath:   path to file to edit
+        :param old:     old string
+        :param new:     new string
+        :param delete_aux_files:
+                        flag to simplify debugging
+        """
         s_and_r_fname = "search_and_replace.py"
         s_and_r_fpath = f"{get_dir_of_this_file()}/{s_and_r_fname}"
         assert os.path.isfile(s_and_r_fpath)
@@ -443,6 +452,50 @@ class StateConnection(object):
             self.run(f"rm {new_string_target_path}")
 
         return old, new
+
+    def multi_edit_file(self, fpath: str, replacements: list[tuple[str]], delete_aux_files=True):
+        """
+        convert `replacements` to json, upload to remote site and then run `multi_search_and_replace.py`
+
+        :param fpath:   path to file to edit
+        :param replacements: list of tuples (old_string, new_string)
+        :param delete_aux_files:
+                        flag to simplify debugging
+        """
+
+        assert isinstance(replacements, list)
+        for tup in replacements:
+            assert isinstance(tup, (tuple, list))
+            assert len(tup) == 2
+            assert isinstance(tup[0], str) and isinstance(tup[1], str)
+
+        import tempfile
+        ts = time.strftime("%Y-%m-%d__%H-%M-%S")
+
+        rplmt_data = {
+            "target_file": fpath,
+            "replacements": replacements,
+        }
+
+        replacements_fpath = tempfile.mktemp(prefix=f"du_{ts}_replacements_", suffix=".json")
+        with open(replacements_fpath, 'w', encoding='utf-8') as fp: json.dump(rplmt_data, fp, indent=2)
+
+        target_spec = "remote"
+
+        replacements_target_path = f"~/tmp/{os.path.split(replacements_fpath)[1]}"
+        self.rsync_upload(replacements_fpath, replacements_target_path, target_spec)
+
+        m_s_and_r_fname = "multi_search_and_replace.py"
+        m_s_and_r_fpath = f"{get_dir_of_this_file()}/{m_s_and_r_fname}"
+        assert os.path.isfile(m_s_and_r_fpath)
+
+        m_s_and_r_target_fpath = f"~/tmp/{m_s_and_r_fname}"
+        self.rsync_upload(m_s_and_r_fpath, m_s_and_r_target_fpath, target_spec)
+        self.run(f"python3 {m_s_and_r_target_fpath} {replacements_target_path}")
+
+        if delete_aux_files:
+            os.remove(replacements_fpath)
+            self.run(f"rm {replacements_target_path}")
 
     def run_target_command(
         self, full_command_lists: List[list], hide: bool, warn: bool, target_spec: str
