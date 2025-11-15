@@ -395,6 +395,20 @@ class StateConnection(object):
 
         return res
 
+    def string_to_file(self, txt: str, fpath, mode=">"):
+        import base64
+        """
+        Convert string to base64 and on remote site use `echo` and `| base64 -d >` to write it to a file.
+        Motivation: circumvent bug-prone escaping of special chars in combination of bash, ssh and python
+
+        :return: the result of `cat fpath`
+        """
+
+        txt_b64 = base64.b64encode(txt.encode("utf8")).decode("utf8")
+        self.run(f"echo {txt_b64} | base64 -d {mode} {fpath}")
+        res = self.run(f"cat {fpath}")
+        return res.stdout
+
     def run_target_command(
         self, full_command_lists: List[list], hide: bool, warn: bool, target_spec: str
     ) -> Union[EContainer, subprocess.CompletedProcess]:

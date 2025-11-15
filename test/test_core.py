@@ -10,6 +10,7 @@ import decouple
 import tempfile
 import json
 import pytest
+from textwrap import dedent
 
 import deploymentutils as du
 from deploymentutils import render_template, StateConnection, get_dir_of_this_file
@@ -373,7 +374,6 @@ class TC1(LocalFileDeletingTestCase):
         self.assertEqual(dep_date, "<not available>")
 
 
-
 class TC1b(LocalFileDeletingTestCase):
     def test_get_nearest_config_toml(self):
 
@@ -509,7 +509,7 @@ class TC2(unittest.TestCase):
         self.c = du.StateConnection(remote_server, user=remote_user, target="remote")
         pass
 
-    def test_b010_remote1(self):
+    def test_b010__remote1(self):
         res = self.c.run("hostname")
         self.assertEqual(res.exited, 0)
         self.assertEqual(remote_server, res.stdout.strip())
@@ -529,7 +529,7 @@ class TC2(unittest.TestCase):
         self.assertEqual(res.exited, 0)
         self.c.chdir("~")
 
-    def test_b020_venv1(self):
+    def test_b020__venv1(self):
         self.c.chdir("~/tmp")
         res = self.c.run(f"{pipc} install --user virtualenv")
 
@@ -551,13 +551,13 @@ class TC2(unittest.TestCase):
         res = self.c.run("hostname", target_spec="local")
         self.assertTrue(res.command_omitted)
 
-    def test_b030_remote_warn(self):
+    def test_b030__remote_warn(self):
 
         # this command returns with nonzero exit code
         res = self.c.run("pip show nonexistent_XYZ_package", warn=False)
         self.assertNotEqual(res.exited, 0)
 
-    def test_b040_deploy_this_package(self):
+    def test_b040__deploy_this_package(self):
 
         # preparation
         self.c.chdir("~/tmp")
@@ -567,7 +567,7 @@ class TC2(unittest.TestCase):
         self.c.activate_venv("~/tmp/test_env/bin/activate")
         res = self.c.run(f"pip install --upgrade pip setuptools", warn=False)
 
-        # this is expexted to fail
+        # this is expected to fail
         res = self.c.run(f"pip show deploymentutils", warn=False)
         self.assertNotEqual(res.exited, 0)
 
@@ -576,11 +576,47 @@ class TC2(unittest.TestCase):
         res = self.c.run(f"pip show deploymentutils", warn=False)
         self.assertEqual(res.exited, 0)
 
-    def test_b050_run_command_with_env_var(self):
+    def test_b050__run_command_with_env_var(self):
 
         self.c.set_env("TEST_ENV_VAR", "ABC-XYZ")
         res = self.c.run("echo $TEST_ENV_VAR", target_spec="both")
         self.assertIn("ABC-XYZ", res.stdout)
+
+    def test_b060__string_to_file(self):
+        # use a realistic string with several lines and indentation, quotes and backslashes
+        test_string1 = dedent(
+            r"""
+            # make bash autocomplete with up/down arrow if in interactive mode
+            if [ -t 1 ]
+            then
+                bind '"\e[A":history-search-backward'
+                bind '"\e[B":history-search-forward'
+            fi
+
+            export EDITOR=mcedit
+            export VISUAL=mcedit
+
+            eval "$(~/bin/starship init bash)"
+            """
+        )
+        res_file_content1 = self.c.string_to_file(test_string1, "/tmp/.bashrc")
+        lines1 = res_file_content1.split("\n")
+        self.assertEqual(lines1[1], "# make bash autocomplete with up/down arrow if in interactive mode")
+        self.assertEqual(lines1[4], r"""    bind '"\e[A":history-search-backward'""")
+        self.assertEqual(lines1[11], r'''eval "$(~/bin/starship init bash)"''')
+
+
+        test_string2 = "ABC\nXYZ"
+        res_file_content2 = self.c.string_to_file(test_string2, "/tmp/.bashrc", mode=">>")
+        lines2 = res_file_content2.split("\n")
+        self.assertEqual(lines2[1], "# make bash autocomplete with up/down arrow if in interactive mode")
+        self.assertEqual(lines2[4], r"""    bind '"\e[A":history-search-backward'""")
+        self.assertEqual(lines2[11], r'''eval "$(~/bin/starship init bash)"''')
+        self.assertEqual(lines2[12], "ABC")
+        self.assertEqual(lines2[13], "XYZ")
+
+        # there is no newline at the end (because we added none)
+        self.assertEqual(res_file_content2[-1], "Z")
 
 
 # ######################################################################################################################
