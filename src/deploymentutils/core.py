@@ -444,9 +444,6 @@ class StateConnection(object):
 
         return old, new
 
-
-        self.rsync_upload
-
     def run_target_command(
         self, full_command_lists: List[list], hide: bool, warn: bool, target_spec: str
     ) -> Union[EContainer, subprocess.CompletedProcess]:
