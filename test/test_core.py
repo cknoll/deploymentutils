@@ -623,7 +623,7 @@ class TC2(unittest.TestCase):
         # there is no newline at the end (because we added none)
         self.assertEqual(res_file_content2[-1], "Z")
 
-    def test_b070__string_to_file(self):
+    def test_b070__edit_file(self):
         # create file to edit:
         fpath = "~/tmp/tmpfile.txt"
         test_string1 = self._get_string_data1()
@@ -647,7 +647,7 @@ class TC2(unittest.TestCase):
             """
         )
 
-        self.c.edit_file(fpath, old, new, delete_aux_files=False)
+        self.c.edit_file(fpath, old, new, delete_aux_files=True)
         res = self.c.run(f"cat {fpath}")
         self.assertEqual(res.exited, 0)
         self.assertEqual(res.stdout.count(new), 1)

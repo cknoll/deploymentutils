@@ -439,8 +439,8 @@ class StateConnection(object):
         if delete_aux_files:
             os.remove(old_string_fpath)
             os.remove(new_string_fpath)
-            self.c.run(f"rm {old_string_target_path}")
-            self.c.run(f"rm {new_string_target_path}")
+            self.run(f"rm {old_string_target_path}")
+            self.run(f"rm {new_string_target_path}")
 
         return old, new
 
