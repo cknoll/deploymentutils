@@ -102,7 +102,7 @@ class TC1(LocalFileDeletingTestCase):
         expected_path = "test"
         self.assertTrue(test_path.endswith(expected_path))
 
-    def test_render_remplate(self):
+    def test_render_template(self):
         tmpl_path = os.path.join(TEMPLATEDIR, "template_1.txt")
 
         # test creation of target file next to the template
@@ -355,7 +355,7 @@ class TC1(LocalFileDeletingTestCase):
 
         self.assertEqual(example_value1, public_config("testvalue1"))
         self.assertEqual(example_value2, public_config("testvalue2"))
-        self.assertEqual(public_config("testvalue7"), "string conatining testvalue1")
+        self.assertEqual(public_config("testvalue7"), "string containing testvalue1")
 
         self.assertEqual(public_config("test_key2"), secret_config("test_key2__EXAMPLE"))
 
@@ -486,7 +486,7 @@ class TC1b(LocalFileDeletingTestCase):
 
         self.assertEqual(example_value1, public_config("testvalue1"))
         self.assertEqual(example_value2, public_config("testvalue2"))
-        self.assertEqual(public_config("testvalue7"), "string conatining testvalue1")
+        self.assertEqual(public_config("testvalue7"), "string containing testvalue1")
 
         self.assertEqual(public_config("test_key2"), secret_config("test_key2__EXAMPLE"))
 

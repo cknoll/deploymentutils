@@ -137,7 +137,7 @@ def render_json_template(base_data_path, new_data, target_path, data_format=None
     :param base_data_path:
     :param new_data:
     :param target_path:
-    :param data_format:          explictly specify format or None (guess)
+    :param data_format:          explicitly specify format or None (guess)
     :return:
     """
 
@@ -167,7 +167,7 @@ def render_json_template(base_data_path, new_data, target_path, data_format=None
 class StateConnection(object):
     """
     Wrapper class for fabric connection which remembers the working directory. Also has a target attribute to
-    distinquis between remote and local operation.
+    distinguish between remote and local operation.
     """
 
     def __init__(self, remote, user, target="remote"):
@@ -368,7 +368,7 @@ class StateConnection(object):
 
                     msg = (
                         f"The command {cmd} failed. You can run it again with `warn=smart`"
-                        f"(recommendend) or `warn=True` and inspect `result.stderr` to "
+                        f"(recommended) or `warn=True` and inspect `result.stderr` to "
                         f"get more information.\nOriginal exception follows:\n"
                     )
 
@@ -432,7 +432,7 @@ class StateConnection(object):
             f"> Omitting command `{last_command}`\n> due to target_spec: {target_spec}."
         )
 
-        assert self.target in ("local", "remote"), f"Invald target: {self.target}"
+        assert self.target in ("local", "remote"), f"Invalid target: {self.target}"
         if self.target == "remote":
 
             if target_spec in ("remote", "both"):
@@ -447,7 +447,7 @@ class StateConnection(object):
                 orig_dir = os.getcwd()
 
                 if self.cwd:
-                    # necessatry because subprocess.run does not work with "cd my/path; mycommand"
+                    # necessary because subprocess.run does not work with "cd my/path; my_command"
                     os.chdir(self.cwd)
 
                 res = subprocess.run(
@@ -493,7 +493,7 @@ class StateConnection(object):
         :return:
         """
 
-        # construct the destionation
+        # construct the destination
         if self.target == "remote":
             full_dest = f"{self.user}@{self.remote}:{dest}"
         else:
@@ -587,7 +587,7 @@ class StateConnection(object):
             print(dim(f"> Omitting rsync command `{cmd}`\n> due to target_spec: {target_spec}."))
             res = EContainer(exited=0)
         else:
-            # TODO: instead of locally calling rsync, find a more elegant (plattform-independent) way to do this
+            # TODO: instead of locally calling rsync, find a more elegant (platform-independent) way to do this
             exitcode = os.system(cmd)
             res = EContainer(exited=exitcode)
 
@@ -683,14 +683,14 @@ class StateConnection(object):
         return res.exited == 0
 
 
-def warn_user(appname, target, unsafe_flag, deployment_path, user=None, host=None):
+def warn_user(app_name, target, unsafe_flag, deployment_path, user=None, host=None):
 
     user_at_host = f"{user}@{host}"
     print(
-        f"\n  You are running the deployment for {bright(appname)} with target {bright(target)} "
+        f"\n  You are running the deployment for {bright(app_name)} with target {bright(target)} "
         f"→ {bright(user_at_host)},\n"
-        f"\n  deploymentpath: `{deployment_path}`.\n"
-        f"\n  {yellow('Caution:')} All exisitng user data of the app and any other changes in the\n"
+        f"\n  deployment path: `{deployment_path}`.\n"
+        f"\n  {yellow('Caution:')} All existing user data of the app and any other changes in the\n"
         f"  deployment directory will probably be be replaced by predefined data and fixtures.\n\n"
     )
 
@@ -706,7 +706,7 @@ def get_dir_of_this_file(upcount: int = 1, upcount_dir: int = 0):
     Assumes that this function is called from a script. Return the path of that script (excluding the script itself).
 
     :param upcount:     specifies how many frames to go back/up. default: 1 (means that the caller-frame is processed)
-    :param upcount_dir: specifies how many directories to go up (defalut: 0)
+    :param upcount_dir: specifies how many directories to go up (default: 0)
     """
 
     frame = inspect.currentframe()
@@ -757,7 +757,7 @@ def get_nearest_config(
 
     :param start_dir:   (optional) start directory
 
-    :return:    config object from decoupl module
+    :return:    config object from decouple module
     """
     assert fname.endswith(".ini") or fname.endswith(".toml")
 
@@ -853,7 +853,7 @@ class TOMLConfig(object):
 
     def _get_table_content(self, key):
         """
-        assume key = "table1::entryname" -> resolve the "::"-separated parts
+        assume key = "table1::entry_name" -> resolve the "::"-separated parts
         """
         assert key not in self.settings_dict
 
@@ -872,7 +872,7 @@ class TOMLConfig(object):
             used_parts.append(part_key)
             if not isinstance(res, dict):
                 msg = (
-                    f"the partial key {'::'.join(used_parts)} does not adress a table "
+                    f"the partial key {'::'.join(used_parts)} does not address a table "
                     f"but is of type {type(res)} instead"
                 )
                 raise TypeError(msg)
@@ -1113,7 +1113,7 @@ def remove_secrets_from_config(path, new_path=None):
         raise TypeError(msg)
 
     with open(path) as fp:
-        fulltext_lines = fp.readlines()
+        full_text_lines = fp.readlines()
 
     critical_keys = []
     for k in keys:
@@ -1131,7 +1131,7 @@ def remove_secrets_from_config(path, new_path=None):
 
     result_lines = []
 
-    for line in fulltext_lines:
+    for line in full_text_lines:
 
         line = line.lstrip(" ")
         line_parts = line.split("=")
@@ -1178,15 +1178,15 @@ def remove_secrets_from_config(path, new_path=None):
         if new_path == path:
             raise ValueError("new_path must be different from original path")
 
-    with open(new_path, "w") as inifile:
-        inifile.writelines(result_lines)
+    with open(new_path, "w") as fp:
+        fp.writelines(result_lines)
 
     print("The values for the following keys were replaced: ", ", ".join(action_keys))
     print("File written", new_path)
     return new_path
 
-def contains_critical_token(keystr):
-    kl = keystr.lower()
+def contains_critical_token(key_str):
+    kl = key_str.lower()
     return (("pass" in kl) or ("key" in kl) or ("secret" in kl))
 
 def process_nested_dicts(some_dict, level) -> list:
