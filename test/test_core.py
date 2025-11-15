@@ -42,7 +42,10 @@ class NoRemote(Exception):
 
 
 # because uberspace offers many pip_commands:
-pipc = "pip3.8"
+
+python_version = "3.11"
+pipc = f"pip{python_version}"
+
 
 args = sys.argv[1:]
 sys.argv = sys.argv[0:1]
@@ -506,7 +509,7 @@ class TC2(unittest.TestCase):
         self.c = du.StateConnection(remote_server, user=remote_user, target="remote")
         pass
 
-    def test_remote1(self):
+    def test_b010_remote1(self):
         res = self.c.run("hostname")
         self.assertEqual(res.exited, 0)
         self.assertEqual(remote_server, res.stdout.strip())
@@ -526,17 +529,17 @@ class TC2(unittest.TestCase):
         self.assertEqual(res.exited, 0)
         self.c.chdir("~")
 
-    def test_venv1(self):
+    def test_b020_venv1(self):
         self.c.chdir("~/tmp")
         res = self.c.run(f"{pipc} install --user virtualenv")
 
         # delete old env
         res = self.c.run(f"rm -rf test_env")
-        res = self.c.run(f"virtualenv -p python3.8 test_env")
+        res = self.c.run(f"python{python_version} -m virtualenv -p python{python_version} test_env")
         self.c.chdir("~")
         self.c.activate_venv("~/tmp/test_env/bin/activate")
         res = self.c.run("python --version")
-        self.assertTrue(res.stdout.startswith("Python 3.8"))
+        self.assertTrue(res.stdout.startswith(f"Python {python_version}"))
         res = self.c.run("python --version", use_venv=False)
         self.assertTrue(res.stderr.startswith("Python 2.7"))
 
@@ -548,19 +551,19 @@ class TC2(unittest.TestCase):
         res = self.c.run("hostname", target_spec="local")
         self.assertTrue(res.command_omitted)
 
-    def test_remote_warn(self):
+    def test_b030_remote_warn(self):
 
         # this command returns with nonzero exit code
         res = self.c.run("pip show nonexistent_XYZ_package", warn=False)
         self.assertNotEqual(res.exited, 0)
 
-    def test_deploy_this_package(self):
+    def test_b040_deploy_this_package(self):
 
         # preparation
         self.c.chdir("~/tmp")
         res = self.c.run(f"{pipc} install --user virtualenv")
         res = self.c.run(f"rm -rf test_env")
-        res = self.c.run(f"virtualenv -p python3.8 test_env")
+        res = self.c.run(f"python{python_version} -m virtualenv -p python{python_version} test_env")
         self.c.activate_venv("~/tmp/test_env/bin/activate")
         res = self.c.run(f"pip install --upgrade pip setuptools", warn=False)
 
@@ -573,7 +576,7 @@ class TC2(unittest.TestCase):
         res = self.c.run(f"pip show deploymentutils", warn=False)
         self.assertEqual(res.exited, 0)
 
-    def test_run_command_with_env_var(self):
+    def test_b050_run_command_with_env_var(self):
 
         self.c.set_env("TEST_ENV_VAR", "ABC-XYZ")
         res = self.c.run("echo $TEST_ENV_VAR", target_spec="both")
