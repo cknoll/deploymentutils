@@ -9,6 +9,7 @@ from io import StringIO
 import decouple
 import tempfile
 import json
+import pytest
 
 import deploymentutils as du
 from deploymentutils import render_template, StateConnection, get_dir_of_this_file
@@ -19,18 +20,10 @@ from ipydex import IPS
 """
 These tests only cover a fraction of the actual features. Some tests require access to a remote machine.
 
-
-run tests locally with:
-`export NOREMOTE=True; python -m unittest`
-or
-`export NOREMOTE=True; rednose`
-`export NOREMOTE=True; pytest -s`
+pytest -s --no-remote
 
 to run with remote access, unlock the ssh key and use e.g
 `pytest -s`
-
-
-
 """
 
 DIR_OF_THIS_FILE = os.path.dirname(os.path.abspath(sys.modules.get(__name__).__file__))
@@ -57,7 +50,7 @@ sys.argv = sys.argv[0:1]
 # remote_secrets.ini is obviously not included in this package
 try:
 
-    if "--no-remote" in args or os.getenv("NOREMOTE", "False").lower() == "true":
+    if os.getenv("NOREMOTE", "False").lower() == "true":
         raise NoRemote
 
     remote_secrets = du.get_nearest_config("remote_secrets.ini", start_dir=DIR_OF_THIS_FILE)
@@ -67,7 +60,7 @@ except (FileNotFoundError, decouple.UndefinedValueError, NoRemote):
     remote_server = None
     remote_user = None
 
-
+# TODO: handle in the same way as --no-remote
 if "--no-rsync" in args:
     no_rsync = True
 else:
@@ -507,7 +500,7 @@ class TC1b(LocalFileDeletingTestCase):
         self.assertRaises(ValueError, du.remove_secrets_from_config, new_path)
 
 
-@unittest.skipUnless(remote_server is not None, "no remote server specified")
+@pytest.mark.requires_remote
 class TC2(unittest.TestCase):
     def setUp(self):
         self.c = du.StateConnection(remote_server, user=remote_user, target="remote")
