@@ -573,6 +573,10 @@ class StateConnection(object):
         # construct the source
         if self.target == "remote":
             full_source = f"{self.user}@{self.remote}:{source}"
+            res = self.run("rsync --version", warn=False)
+            if not res.exited == 0:
+                msg = "rsync must be installed on the remote machine but `rsync --version` failed."
+                raise ValueError(msg)
         else:
             full_source = source
 
