@@ -584,6 +584,7 @@ class StateConnection(object):
         # construct the destination
         if self.target == "remote":
             full_dest = f"{self.user}@{self.remote}:{dest}"
+            self.check_rsync()
         else:
             full_dest = dest
 
@@ -626,10 +627,7 @@ class StateConnection(object):
         # construct the source
         if self.target == "remote":
             full_source = f"{self.user}@{self.remote}:{source}"
-            res = self.run("rsync --version", warn=False)
-            if not res.exited == 0:
-                msg = "rsync must be installed on the remote machine but `rsync --version` failed."
-                raise ValueError(msg)
+            self.check_rsync()
         else:
             full_source = source
 
@@ -643,6 +641,12 @@ class StateConnection(object):
             delete=delete,
             additional_flags=additional_flags,
         )
+
+    def check_rsync(self):
+        res = self.run("rsync --version", warn=False)
+        if not res.exited == 0:
+            msg = "rsync must be installed on the remote machine but `rsync --version` failed."
+            raise ValueError(msg)
 
     def _rsync_call(
         self,
