@@ -935,7 +935,7 @@ class TOMLConfig(object):
             import tomli as tomllib
 
         # variable substitution regex
-        self.vsre = re.compile("%\((.+?)\)s")
+        self.vsre = re.compile(r"%\((.+?)\)s")
 
         with open(fpath, "rb") as fp:
             complete_dict = tomllib.load(fp)

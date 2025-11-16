@@ -510,6 +510,7 @@ class TC2(unittest.TestCase):
         pass
 
     def test_b010__remote1(self):
+
         res = self.c.run("hostname")
         self.assertEqual(res.exited, 0)
         self.assertEqual(remote_server, res.stdout.strip())
@@ -528,6 +529,11 @@ class TC2(unittest.TestCase):
         res = self.c.run("rmdir -p abc/xyz")
         self.assertEqual(res.exited, 0)
         self.c.chdir("~")
+
+        # test handling of backslashes in command
+        res = self.c.run(r'echo "foo\bar" > tmp.txt')
+        res = self.c.run('cat tmp.txt')
+        self.assertEqual(res.stdout.strip(), r"foo\bar")
 
     def test_b020__venv1(self):
         self.c.chdir("~/tmp")
