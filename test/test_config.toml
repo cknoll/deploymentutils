@@ -23,7 +23,7 @@ testvalue6 = "production_option"
 testvalue6__DEVMODE = "development_option"
 
 # test for a bug: when key occurs in value:
-testvalue7 = "string conatining testvalue1"
+testvalue7 = "string containing testvalue1"
 
 
 testvalueX__DEVMODE = "does not exist for production"

@@ -6,7 +6,7 @@ def pytest_runtest_setup(item):
 
 
 def pytest_exception_interact(node, call, report):
-    ipydex.ips_excepthook(call.excinfo.type, call.excinfo.value, call.excinfo.tb, frame_upcount=0)
+    ipydex.ips_excepthook(call.excinfo.type, call.excinfo.value, call.excinfo.tb, leave_ut=True)
 
 
 def pytest_addoption(parser):
