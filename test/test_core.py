@@ -605,6 +605,12 @@ class TCStepRelatedLocal(LocalFileDeletingTestCase):
 @pytest.mark.requires_remote
 class TC2(unittest.TestCase):
     def setUp(self):
+        if remote_server is None:
+            msg = (
+                "remote server not configured, probably because file `remote_secrets.ini` is missing. "
+                "Use `--no-remote` to skip tests which require remote execution."
+            )
+            raise ValueError(msg)
         self.c = du.StateConnection(remote_server, user=remote_user, target="remote")
         pass
 
@@ -714,7 +720,6 @@ class TC2(unittest.TestCase):
         self.assertEqual(lines1[1], "# make bash autocomplete with up/down arrow if in interactive mode")
         self.assertEqual(lines1[4], r"""    bind '"\e[A":history-search-backward'""")
         self.assertEqual(lines1[11], r'''eval "$(~/bin/starship init bash)"''')
-
 
         test_string2 = "ABC\nXYZ"
         res_file_content2 = self.c.string_to_file(test_string2, fpath, mode=">>")
