@@ -9,6 +9,9 @@ import datetime
 import json
 import time
 import functools
+import shelve
+import copy
+import dill
 import requests
 from fabric import Connection
 from paramiko.ssh_exception import PasswordRequiredException
@@ -164,13 +167,28 @@ def render_json_template(base_data_path, new_data, target_path, data_format=None
     return result
 
 
+ValidTargetSpec = Literal["remote", "local", "both", "default"]
+
 class StateConnection(object):
     """
-    Wrapper class for fabric connection which remembers the working directory. Also has a target attribute to
-    distinguish between remote and local operation.
+    Wrapper class for fabric connection which remembers the working directory and virtual environment.
+    Also has:
+        - a target attribute to distinguish between remote and local operation,
+        - a step counter to enable skipping steps.
+
+    Step counter counts:
+        - self.run
+        - self.rsync_upload
+        - self.rsync_download
+        - string_to_file
+        - self.edit_file
+        - self.multi_edit
+
+    It does not count: chdir, activate_venv etc as they do not change anything permanently on local host or
+    target machine.
     """
 
-    def __init__(self, remote, user, target="remote"):
+    def __init__(self, remote, user, target="remote", first_step=1):
         self.dir = None
         self.cwd = None
         self.venv_path = None
@@ -180,8 +198,12 @@ class StateConnection(object):
         self.remote = remote
         self.user = user
         self.env_variables = {}
+        self.step_counter = 0
+        self.first_step = first_step
+        self.result_store_fname = "deploymentutils_result_shelf.db"
 
         assert target in ("remote", "local")
+        assert isinstance(first_step, int) and first_step >= 1
         self.target = target
         if target == "remote":
             self._c = Connection(remote, user)
@@ -192,7 +214,42 @@ class StateConnection(object):
         else:
             self._c = None
 
-    def cprint(self, txt, target_spec="both"):
+    def store_result(self, res, key=None):
+        if key is None:
+            key = str(self.step_counter)
+        with shelve.open(self.result_store_fname) as shelf:
+            # prepare for pickling
+            bad_items = dill.detect.baditems(res.__dict__.items())
+            for name, _ in bad_items:
+                delattr(res, name)
+
+            shelf[key] = res  # Automatically saved
+
+    def restore_result(self, key=None):
+        if key is None:
+            key = str(self.step_counter)
+        with shelve.open(self.result_store_fname) as shelf:
+            return shelf.get(key, default=None)
+
+    @staticmethod
+    def count_step(method):
+        functools.wraps(method)
+        def wrapper(self, *args, do_not_count=False, **kwargs):
+
+            if do_not_count:
+                return method(self, *args, **kwargs)
+
+            self.step_counter += 1
+            if self.step_counter < self.first_step:
+                print(f"↷ Omitting step {self.step_counter}")
+                return self.restore_result(key=str(self.step_counter))
+            else:
+                res = method(self, *args, **kwargs)
+                self.store_result(res, key=str(self.step_counter))
+            return res
+        return wrapper
+
+    def cprint(self, txt, target_spec: ValidTargetSpec = "default"):
         """
         Colored print-function. Color (bright or gray) depends on `target_spec` and `self.target`.
 
@@ -200,6 +257,10 @@ class StateConnection(object):
         :param target_spec:   one of `both` (default), `remote` or `local`
         :return:
         """
+
+        assert target_spec in ValidTargetSpec.__args__
+        if target_spec == "default":
+            target_spec = self.target
 
         if target_spec in (self.target, "both"):
             print(bright(txt))
@@ -228,7 +289,7 @@ class StateConnection(object):
         self.venv_target = None
 
     def chdir(
-        self, path, target_spec: Literal["remote", "local", "both"] = "both", tolerate_error=False
+        self, path, target_spec: ValidTargetSpec = "both", tolerate_error=False
     ):
         """
         The following works on uberspace:
@@ -242,6 +303,10 @@ class StateConnection(object):
         :param tolerate_error:
         :return:
         """
+
+        assert target_spec in ValidTargetSpec.__args__
+        if target_spec == "default":
+            target_spec = self.target
 
         if path is None:
             self.dir = None
@@ -289,6 +354,7 @@ class StateConnection(object):
     def set_env(self, name: str, value: str):
         self.env_variables[name] = value
 
+    @count_step
     def run(
         self,
         cmd,
@@ -296,7 +362,7 @@ class StateConnection(object):
         hide: bool = False,
         warn: Union[bool, str] = "smart",
         printonly=False,
-        target_spec: Literal["remote", "local", "both"] = "remote",
+        target_spec: ValidTargetSpec = "default",
         use_venv: bool = True,
     ):
         """
@@ -307,9 +373,12 @@ class StateConnection(object):
         :param hide:            see docs of invoke {"out", "err", True, False}
         :param warn:            see docs of invoke and handling of "smart" below
         :param printonly:       flag for debugging
-        :param target_spec:     str; default: "remote"
+        :param target_spec:     str; defaults to self.target_spec
         :return:
         """
+
+        if target_spec == "default":
+            target_spec = self.target
 
         # full_command_list will be a list of lists
         if isinstance(cmd, list):
@@ -326,7 +395,7 @@ class StateConnection(object):
             else:
                 self.cwd = self.dir
 
-        assert target_spec in ("remote", "local", "both")
+        assert target_spec in ValidTargetSpec.__args__
         assert self.venv_target in (None, "remote", "both")
 
         venv_target_condition = self.venv_target == "both" or (
@@ -431,18 +500,15 @@ class StateConnection(object):
         with open(old_string_fpath, 'w', encoding='utf-8') as fp: fp.write(old)
         with open(new_string_fpath, 'w', encoding='utf-8') as fp: fp.write(new)
 
-        target_spec = "remote"
-
         old_string_target_path = f"~/tmp/{os.path.split(old_string_fpath)[1]}"
-        self.rsync_upload(old_string_fpath, old_string_target_path, target_spec)
+        self.rsync_upload(old_string_fpath, old_string_target_path)
 
         # same for new
         new_string_target_path = f"~/tmp/{os.path.split(new_string_fpath)[1]}"
-        self.rsync_upload(new_string_fpath, new_string_target_path, target_spec)
-
+        self.rsync_upload(new_string_fpath, new_string_target_path)
 
         s_and_r_target_fpath = f"~/tmp/{s_and_r_fname}"
-        self.rsync_upload(s_and_r_fpath, s_and_r_target_fpath, target_spec)
+        self.rsync_upload(s_and_r_fpath, s_and_r_target_fpath)
         self.run(f"python3 {s_and_r_target_fpath} {fpath} {old_string_target_path} {new_string_target_path}")
 
         if delete_aux_files:
@@ -480,17 +546,15 @@ class StateConnection(object):
         replacements_fpath = tempfile.mktemp(prefix=f"du_{ts}_replacements_", suffix=".json")
         with open(replacements_fpath, 'w', encoding='utf-8') as fp: json.dump(rplmt_data, fp, indent=2)
 
-        target_spec = "remote"
-
         replacements_target_path = f"~/tmp/{os.path.split(replacements_fpath)[1]}"
-        self.rsync_upload(replacements_fpath, replacements_target_path, target_spec)
+        self.rsync_upload(replacements_fpath, replacements_target_path)
 
         m_s_and_r_fname = "multi_search_and_replace.py"
         m_s_and_r_fpath = f"{get_dir_of_this_file()}/{m_s_and_r_fname}"
         assert os.path.isfile(m_s_and_r_fpath)
 
         m_s_and_r_target_fpath = f"~/tmp/{m_s_and_r_fname}"
-        self.rsync_upload(m_s_and_r_fpath, m_s_and_r_target_fpath, target_spec)
+        self.rsync_upload(m_s_and_r_fpath, m_s_and_r_target_fpath)
         self.run(f"python3 {m_s_and_r_target_fpath} {replacements_target_path}")
 
         if delete_aux_files:
@@ -498,7 +562,7 @@ class StateConnection(object):
             self.run(f"rm {replacements_target_path}")
 
     def run_target_command(
-        self, full_command_lists: List[list], hide: bool, warn: bool, target_spec: str
+        self, full_command_lists: List[list], hide: bool, warn: bool, target_spec: ValidTargetSpec
     ) -> Union[EContainer, subprocess.CompletedProcess]:
         """
         Actually run the command (or not), depending on self.target and target_spec.
@@ -509,6 +573,10 @@ class StateConnection(object):
         :param target_spec:
         :return:
         """
+
+        assert target_spec in ValidTargetSpec.__args__
+        if target_spec == "default":
+            target_spec = self.target
 
         assert isinstance(full_command_lists, list) and isinstance(full_command_lists[0], list)
 
@@ -536,7 +604,7 @@ class StateConnection(object):
 
                 if self.cwd:
                     # necessary because subprocess.run does not work with "cd my/path; my_command"
-                    os.chdir(self.cwd)
+                    os.chdir(os.path.expanduser(self.cwd))
 
                 res = subprocess.run(
                     full_command_txt, capture_output=True, shell=True, executable="/bin/bash"
@@ -560,7 +628,7 @@ class StateConnection(object):
         self,
         source,
         dest,
-        target_spec,
+        target_spec: ValidTargetSpec = "default",
         filters="",
         printonly=False,
         tol_nonzero_exit=False,
@@ -580,6 +648,10 @@ class StateConnection(object):
         :param additional_flags:    possibility to add more flags
         :return:
         """
+
+        assert target_spec in ValidTargetSpec.__args__
+        if target_spec == "default":
+            target_spec = self.target
 
         # construct the destination
         if self.target == "remote":
@@ -603,7 +675,7 @@ class StateConnection(object):
         self,
         source,
         dest,
-        target_spec,
+        target_spec: ValidTargetSpec = "default",
         filters="",
         printonly=False,
         tol_nonzero_exit=False,
@@ -623,6 +695,10 @@ class StateConnection(object):
         :param additional_flags:    possibility to add more flags
         :return:
         """
+
+        assert target_spec in ValidTargetSpec.__args__
+        if target_spec == "default":
+            target_spec = self.target
 
         # construct the source
         if self.target == "remote":
@@ -718,7 +794,7 @@ class StateConnection(object):
             f"--exclude='__pycache__/' "
         )
 
-        self.rsync_upload(package_dir, "~/tmp", filters=filters, target_spec="remote")
+        self.rsync_upload(package_dir, "~/tmp", filters=filters, target_spec=self.target)
 
         self.run(f"{pip_command} uninstall -y {package_name}", warn=False)
 
@@ -747,6 +823,8 @@ class StateConnection(object):
             f"--exclude='__pycache__/' "
         )
 
+        assert self.target == "remote"
+
         if target_path is None:
             target_path = "~/tmp"
         package_dir_name = os.path.split(local_path)[1]
@@ -754,14 +832,14 @@ class StateConnection(object):
         # remove old version
         self.run(f"rm -rf {target_path}/{package_dir_name}")
 
-        self.rsync_upload(local_path, "~/tmp", filters=filters, target_spec="remote")
+        self.rsync_upload(local_path, "~/tmp", filters=filters, target_spec=self.target)
 
         if package_name:
             self.run(f"{pip_command} uninstall -y {package_name}", warn=False)
 
         self.run(f"{pip_command} install {target_path}/{package_dir_name}")
 
-    def check_existence(self, path, target_spec="remote", operator_flag="-e"):
+    def check_existence(self, path, target_spec: ValidTargetSpec = "default", operator_flag="-e"):
         """
         Check the existence of a remote file or directory.
 
@@ -770,6 +848,10 @@ class StateConnection(object):
         :param operator_flag:   "-e" (default, both directory and file), "-d" (directory), "-f" (file)
         :return:
         """
+
+        assert target_spec in ValidTargetSpec.__args__
+        if target_spec == "default":
+            target_spec = self.target
 
         if not target_spec == "both":
             assert target_spec == self.target
@@ -1146,7 +1228,6 @@ def toml_quote(obj):
     return res
 
 
-
 def remove_secrets_from_config(path, new_path=None):
     """
     Parse the ini/toml file at `path` and create a copy where every non-comment line containing `pass` or `key`
@@ -1322,8 +1403,6 @@ def get_deployment_date(fpath: str, format="%Y-%m-%d %H:%M:%S") -> str:
         res = str(timestamp)
 
     return res
-
-
 
 
 def dim(txt):

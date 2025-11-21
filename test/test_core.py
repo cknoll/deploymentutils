@@ -502,6 +502,26 @@ class TC1b(LocalFileDeletingTestCase):
             fp.write(bad_addition)
         self.assertRaises(ValueError, du.remove_secrets_from_config, new_path)
 
+class TCStepRelatedLocal(LocalFileDeletingTestCase):
+    def setUp(self):
+        self.c = StateConnection(remote=None, user=None, target="local", first_step=1)
+        self.workdir = "~/tmp/_du_test_workdir"
+        res = self.c.run(f"mkdir -p {self.workdir}", do_not_count=True)
+        # IPS(-1)
+        self.c.chdir(self.workdir)
+
+        return super().setUp()
+    def tearDown(self):
+        self.c.run(f"rm -rf {self.workdir}")
+        return super().tearDown()
+
+    def test_s010_steps1(self):
+
+        self.c.run("""echo "1" > res.txt""")
+        # IPS()
+
+    pass
+
 
 @pytest.mark.requires_remote
 class TC2(unittest.TestCase):
