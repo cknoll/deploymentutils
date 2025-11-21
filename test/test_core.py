@@ -505,7 +505,7 @@ class TC1b(LocalFileDeletingTestCase):
 class TCStepRelatedLocal(LocalFileDeletingTestCase):
     def setUp(self, first_step=1):
         self.c = StateConnection(remote=None, user=None, target="local", first_step=first_step)
-        self.workdir = "~/tmp/_du_test_workdir"
+        self.workdir = os.path.expanduser("~/tmp/_du_test_workdir")
         res = self.c.run(f"mkdir -p {self.workdir}", do_not_count=True)
         # IPS(-1)
         self.c.chdir(self.workdir)
@@ -536,6 +536,47 @@ class TCStepRelatedLocal(LocalFileDeletingTestCase):
         sequence()
         res = self.c.run(f"cat {fname}").stdout.strip()
         self.assertEqual(res, "3\n4")
+
+    def test_s020_step_omit_rsync(self):
+        src1 = os.path.join(TESTDATADIR, "data1", "dir")
+        fname = "test.txt"
+
+        def sequence():
+            self.c.run(f"""echo "1" > {fname}""")
+            self.c.run(f"""echo "2" >> {fname}""")
+
+            # this tests the result retrieval if command is omitted
+            res = self.c.run(f"cat {fname}").stdout.strip()  # step 3
+            self.assertEqual(res, "1\n2")
+
+            res = self.c.rsync_upload(src1, dest=self.workdir, target_spec="both")  # step 4
+            self.assertEqual(res.exited, 0)
+            self.c.run(f"""echo "5" >> {fname}""")
+            self.c.run(f"""echo "6" >> {fname}""")
+
+
+        expected_structure = [
+            (f"{self.workdir}", ["dir"], [fname]),
+            (f"{self.workdir}/dir", [], ["file1.txt"]),
+        ]
+
+        sequence()
+
+        real_structure = sorted_walk_lists(self.workdir)
+        self.assertEqual(expected_structure, real_structure)
+        res = self.c.run(f"cat {fname}").stdout.strip()
+        self.assertEqual(res, "1\n2\n5\n6")
+
+        self.reset(first_step=5)
+        sequence()
+        expected_structure = [(f"{self.workdir}", [], [fname]),]
+        real_structure = sorted_walk_lists(self.workdir)
+        self.assertEqual(expected_structure, real_structure)
+        res = self.c.run(f"cat {fname}").stdout.strip()
+        self.assertEqual(res, "5\n6")
+
+    # def test_s020_step_omit_rsync(self):
+    #     pass
 
 
 @pytest.mark.requires_remote
@@ -724,6 +765,8 @@ class TC2(unittest.TestCase):
 
 def sorted_walk_lists(target_path):
     """Helper function to ensure reproducible result of os.walk()"""
+
+    target_path = os.path.expanduser(target_path)
 
     top_list = list(os.walk(target_path))
     for tup in top_list:

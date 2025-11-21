@@ -244,6 +244,7 @@ class StateConnection(object):
                 print(f"↷ Omitting step {self.step_counter}")
                 return self.restore_result(key=str(self.step_counter))
             else:
+                print(f"step ({self.step_counter:03d}) ", end="")
                 res = method(self, *args, **kwargs)
                 self.store_result(res, key=str(self.step_counter))
             return res
@@ -462,6 +463,7 @@ class StateConnection(object):
 
         return res
 
+    @count_step
     def string_to_file(self, txt: str, fpath, mode=">"):
         import base64
         """
@@ -476,6 +478,7 @@ class StateConnection(object):
         res = self.run(f"cat {fpath}")
         return res.stdout
 
+    @count_step
     def edit_file(self, fpath: str, old: str, new, delete_aux_files=True):
         """
         upload `old` and `new` to remote site and then run `search_and_replace.py`
@@ -517,6 +520,7 @@ class StateConnection(object):
 
         return old, new
 
+    @count_step
     def multi_edit_file(self, fpath: str, replacements: list[tuple[str]], delete_aux_files=True):
         """
         convert `replacements` to json, upload to remote site and then run `multi_search_and_replace.py`
@@ -622,6 +626,7 @@ class StateConnection(object):
 
         return res
 
+    @count_step
     def rsync_upload(
         self,
         source,
@@ -669,6 +674,7 @@ class StateConnection(object):
             additional_flags=additional_flags,
         )
 
+    @count_step
     def rsync_download(
         self,
         source,
