@@ -181,7 +181,7 @@ class TC1(LocalFileDeletingTestCase):
         with captured_output() as (out, err):
             res = c.run("python3 -c \"print('123-test-789')\"", target_spec="local", hide=True)
 
-        self.assertEqual(out.getvalue().strip(), "")
+        self.assertEqual(out.getvalue().strip(), "step (001)")
         self.assertTrue("123-test-789" in res.stdout)
 
     def test_run_command_with_env_var(self):

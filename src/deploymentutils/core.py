@@ -219,9 +219,10 @@ class StateConnection(object):
             key = str(self.step_counter)
         with shelve.open(self.result_store_fname) as shelf:
             # prepare for pickling
-            bad_items = dill.detect.baditems(res.__dict__.items())
-            for name, _ in bad_items:
-                delattr(res, name)
+            if hasattr(res, "__dict__"):
+                bad_items = dill.detect.baditems(res.__dict__.items())
+                for name, _ in bad_items:
+                    delattr(res, name)
 
             shelf[key] = res  # Automatically saved
 
