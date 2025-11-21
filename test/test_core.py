@@ -503,8 +503,8 @@ class TC1b(LocalFileDeletingTestCase):
         self.assertRaises(ValueError, du.remove_secrets_from_config, new_path)
 
 class TCStepRelatedLocal(LocalFileDeletingTestCase):
-    def setUp(self):
-        self.c = StateConnection(remote=None, user=None, target="local", first_step=1)
+    def setUp(self, first_step=1):
+        self.c = StateConnection(remote=None, user=None, target="local", first_step=first_step)
         self.workdir = "~/tmp/_du_test_workdir"
         res = self.c.run(f"mkdir -p {self.workdir}", do_not_count=True)
         # IPS(-1)
@@ -515,12 +515,27 @@ class TCStepRelatedLocal(LocalFileDeletingTestCase):
         self.c.run(f"rm -rf {self.workdir}")
         return super().tearDown()
 
+    def reset(self, first_step=1):
+        self.tearDown()
+        self.setUp(first_step=first_step)
+
     def test_s010_steps1(self):
 
-        self.c.run("""echo "1" > res.txt""")
-        # IPS()
+        fname = "test.txt"
 
-    pass
+        def sequence():
+            self.c.run(f"""echo "1" > {fname}""")
+            self.c.run(f"""echo "2" >> {fname}""")
+            self.c.run(f"""echo "3" >> {fname}""")
+            self.c.run(f"""echo "4" >> {fname}""")
+        sequence()
+        res = self.c.run(f"cat {fname}").stdout.strip()
+        self.assertEqual(res, "1\n2\n3\n4")
+
+        self.reset(first_step=3)
+        sequence()
+        res = self.c.run(f"cat {fname}").stdout.strip()
+        self.assertEqual(res, "3\n4")
 
 
 @pytest.mark.requires_remote

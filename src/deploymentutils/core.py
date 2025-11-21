@@ -334,7 +334,7 @@ class StateConnection(object):
         self.dir = abs_path
 
         cmd = "pwd"
-        res = self.run(cmd, hide=True, warn=True, target_spec=target_spec)
+        res = self.run(cmd, hide=True, warn=True, target_spec=target_spec, do_not_count=True)
         pwd_txt = res.stdout.strip()
 
         if res.exited != 0:
@@ -425,8 +425,6 @@ class StateConnection(object):
         if not printonly:
             # noinspection PyUnusedLocal
             try:
-                if not hide:
-                    print(dim("<- "), end="")
                 res = self.run_target_command(
                     full_command_list, hide=hide, warn=warn, target_spec=target_spec
                 )
@@ -615,7 +613,7 @@ class StateConnection(object):
 
                 os.chdir(orig_dir)
                 if res is not None and res.stdout and hide not in (True, "out"):
-                    print(res.stdout)
+                    print(dim("<-"), res.stdout)
 
             else:
                 # -> self.target != "remote" but target_spec == "remote"
