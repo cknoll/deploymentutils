@@ -48,7 +48,10 @@ class EContainer(Container):
 # the following reduces the boilerplate
 argparser = argparse.ArgumentParser()
 argparser.add_argument(
-    "target", help="deployment target: `local` or `remote`.", choices=["local", "remote"], default="remote"
+    "target",
+    help="deployment target: `local` or `remote`.",
+    choices=["local", "remote"], default="remote",
+    nargs="?"
 )
 argparser.add_argument("-u", "--unsafe", help="omit security confirmation", action="store_true")
 argparser.add_argument("-i", "--initial", help="flag for initial deployment", action="store_true")
@@ -59,12 +62,17 @@ argparser.add_argument(
     action="store_true",
 )
 
+argparser.add_argument("--first-step", "-fs", help="specify first step", type=int, default=1)
+
 
 def parse_args(*args, **kwargs):
     args = argparser.parse_args(*args, **kwargs)
     if args.target != "local" and args.symlink:
         raise ValueError(f"incompatible options: target: {args.target} and --symlink: True")
     return args
+
+# make it available under a different name to prevent name clashing inside StateConnection.__init__
+parse_args_func = parse_args
 
 
 def render_template(tmpl_path, context, target_path=None):
@@ -188,7 +196,7 @@ class StateConnection(object):
     target machine.
     """
 
-    def __init__(self, remote, user, target="remote", first_step=1):
+    def __init__(self, remote, user, target="remote", first_step=None, parse_args: bool = False):
         self.dir = None
         self.cwd = None
         self.venv_path = None
@@ -199,11 +207,19 @@ class StateConnection(object):
         self.user = user
         self.env_variables = {}
         self.step_counter = 0
-        self.first_step = first_step
         self.result_store_fname = "deploymentutils_result_shelf.db"
 
+        if parse_args:
+            args = parse_args_func()
+            assert first_step is None
+            self.first_step = args.first_step
+        else:
+            if first_step is None:
+                first_step = 1
+            self.first_step = first_step
+
         assert target in ("remote", "local")
-        assert isinstance(first_step, int) and first_step >= 1
+        assert isinstance(self.first_step, int) and self.first_step >= 1
         self.target = target
         if target == "remote":
             self._c = Connection(remote, user)

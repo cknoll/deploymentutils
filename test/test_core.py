@@ -143,9 +143,12 @@ class TC1(LocalFileDeletingTestCase):
         args = du.parse_args(["local"])
         self.assertEqual(args.unsafe, False)
 
-        with captured_output() as (out, err):
-            self.assertRaises(SystemExit, du.parse_args, [])
-        self.assertTrue("usage:" in err.getvalue().strip())
+        # this was used to ensure that either "local" or "remote" has to be specified.
+        # now "remote is default"
+        if 0:
+            with captured_output() as (out, err):
+                self.assertRaises(SystemExit, du.parse_args, [])
+            self.assertTrue("usage:" in err.getvalue().strip())
 
         with self.assertRaises(ValueError) as cm:
             du.parse_args(["-l", "remote"])
