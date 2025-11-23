@@ -203,6 +203,7 @@ class StateConnection(object):
         self.venv_target = None
         self.last_result = None
         self.last_command = None
+        self.last_full_command_txt = None
         self.remote = remote
         self.user = user
         self.env_variables = {}
@@ -369,7 +370,9 @@ class StateConnection(object):
 
         return res
 
-    def set_env(self, name: str, value: str):
+    def set_env(self, name: str, value: str, raw=False):
+        if not raw:
+            value = value.replace("~/", "$HOME/")
         self.env_variables[name] = value
 
     @count_step
@@ -611,6 +614,7 @@ class StateConnection(object):
         if self.target == "remote":
 
             if target_spec in ("remote", "both"):
+                self.last_full_command_txt = full_command_txt = full_command_txt
                 res = self._c.run(full_command_txt, hide=hide, warn=warn)
             else:
                 print(omit_message)
