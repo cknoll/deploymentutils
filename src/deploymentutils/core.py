@@ -1349,6 +1349,7 @@ def remove_secrets_from_config(path, new_path=None):
         if contains_critical_token(k) and not k.endswith("__EXAMPLE"):
             critical_keys.append(k)
 
+    IPS(-1)
     keys_with_example_values = [k.replace("__EXAMPLE", "") for k in keys if k.endswith("__EXAMPLE")]
 
     more_critical_keys = process_nested_dicts(config.settings_dict, level=0)
@@ -1359,6 +1360,8 @@ def remove_secrets_from_config(path, new_path=None):
     action_keys = critical_keys + keys_with_example_values
 
     result_lines = []
+
+    IPS()
 
     for line in full_text_lines:
 
@@ -1424,6 +1427,7 @@ def process_nested_dicts(some_dict, level) -> list:
     return a list of critical keys
     """
     result = []
+    key: str
     for key, value in some_dict.items():
         if isinstance(value, dict):
             if contains_critical_token(key):
@@ -1431,7 +1435,7 @@ def process_nested_dicts(some_dict, level) -> list:
                 raise ValueError(msg)
             else:
                 result.extend(process_nested_dicts(value, level+1))
-        elif level > 0 and contains_critical_token(key):
+        elif level > 0 and contains_critical_token(key) and not key.endswith("__EXAMPLE") :
             result.append(key)
     return result
 # noinspection PyShadowingBuiltins
