@@ -506,8 +506,14 @@ class TC1b(LocalFileDeletingTestCase):
         self.assertRaises(ValueError, du.remove_secrets_from_config, new_path)
 
 class TCStepRelatedLocal(LocalFileDeletingTestCase):
-    def setUp(self, first_step=1):
-        self.c = StateConnection(remote=None, user=None, target="local", first_step=first_step)
+    def setUp(self, first_step=1, omit_until_told_otherwise=False):
+        self.c = StateConnection(
+            remote=None,
+            user=None,
+            target="local",
+            first_step=first_step,
+            omit_until_told_otherwise=omit_until_told_otherwise,
+        )
         self.workdir = os.path.expanduser("~/tmp/_du_test_workdir")
         res = self.c.run(f"mkdir -p {self.workdir}", do_not_count=True)
         # IPS(-1)
@@ -518,9 +524,9 @@ class TCStepRelatedLocal(LocalFileDeletingTestCase):
         self.c.run(f"rm -rf {self.workdir}")
         return super().tearDown()
 
-    def reset(self, first_step=1):
+    def reset(self, first_step=1, omit_until_told_otherwise=False):
         self.tearDown()
-        self.setUp(first_step=first_step)
+        self.setUp(first_step=first_step, omit_until_told_otherwise=omit_until_told_otherwise)
 
     def test_s010_steps1(self):
 
@@ -557,7 +563,6 @@ class TCStepRelatedLocal(LocalFileDeletingTestCase):
             self.c.run(f"""echo "5" >> {fname}""")
             self.c.run(f"""echo "6" >> {fname}""")
 
-
         expected_structure = [
             (f"{self.workdir}", ["dir"], [fname]),
             (f"{self.workdir}/dir", [], ["file1.txt"]),
@@ -578,8 +583,23 @@ class TCStepRelatedLocal(LocalFileDeletingTestCase):
         res = self.c.run(f"cat {fname}").stdout.strip()
         self.assertEqual(res, "5\n6")
 
-    # def test_s020_step_omit_rsync(self):
-    #     pass
+    def test_s030_stop_omitting(self):
+        src1 = os.path.join(TESTDATADIR, "data1", "dir")
+        fname = "test.txt"
+        def sequence():
+            self.c.run(f"""echo "1" > {fname}""")
+            self.c.run(f"""echo "2" >> {fname}""")
+            self.c.stop_omitting()
+            self.c.run(f"""echo "3" >> {fname}""")
+            self.c.run(f"""echo "4" >> {fname}""")
+        sequence()
+        res = self.c.run(f"cat {fname}").stdout.strip()
+        self.assertEqual(res, "1\n2\n3\n4")
+
+        self.reset(omit_until_told_otherwise=True)
+        sequence()
+        res = self.c.run(f"cat {fname}").stdout.strip()
+        self.assertEqual(res, "3\n4")
 
 
 @pytest.mark.requires_remote
@@ -756,7 +776,6 @@ class TC2(unittest.TestCase):
         self.assertEqual(res.stdout.count(replacements[0][1]), 1)
         self.assertEqual(res.stdout.count(replacements[1][1]), 1)
         self.assertEqual(res.stdout.count(replacements[2][1]), 1)
-
 
 
 # ######################################################################################################################

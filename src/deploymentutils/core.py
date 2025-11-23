@@ -63,6 +63,12 @@ argparser.add_argument(
 )
 
 argparser.add_argument("--first-step", "-fs", help="specify first step", type=int, default=1)
+argparser.add_argument(
+    "--omit-until-told-otherwise",
+    "-oo",
+    help="omit all steps until c.stop_omit() is called",
+    action="store_true",
+)
 
 
 def parse_args(*args, **kwargs):
@@ -196,7 +202,15 @@ class StateConnection(object):
     target machine.
     """
 
-    def __init__(self, remote, user, target="remote", first_step=None, parse_args: bool = False):
+    def __init__(
+        self,
+        remote,
+        user,
+        target="remote",
+        first_step=None,
+        parse_args: bool = False,
+        omit_until_told_otherwise=False,
+    ):
         self.dir = None
         self.cwd = None
         self.venv_path = None
@@ -214,10 +228,20 @@ class StateConnection(object):
             args = parse_args_func()
             assert first_step is None
             self.first_step = args.first_step
+            self.omit_until_told_otherwise=args.omit_until_told_otherwise
         else:
+            # allow to specify first_step and omit_until_told_otherwise not as cli args but as kwargs
+            # (used in tests)
             if first_step is None:
                 first_step = 1
+            if omit_until_told_otherwise is None:
+                omit_until_told_otherwise = False
             self.first_step = first_step
+            self.omit_until_told_otherwise = omit_until_told_otherwise
+
+        if self.omit_until_told_otherwise:
+            assert self.first_step == 1, "omit_until_told_otherwise can only be used with first_step=1"
+            self.first_step = int(1e9) # our approximation of integer infinity
 
         assert target in ("remote", "local")
         assert isinstance(self.first_step, int) and self.first_step >= 1
@@ -374,6 +398,9 @@ class StateConnection(object):
         if not raw:
             value = value.replace("~/", "$HOME/")
         self.env_variables[name] = value
+
+    def stop_omitting(self):
+        self.first_step = self.step_counter
 
     @count_step
     def run(
