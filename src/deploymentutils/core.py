@@ -797,7 +797,11 @@ class StateConnection(object):
             additional_flags = f" {additional_flags.lstrip()}"
 
         if self.target == "remote":
-            cnctn = " --rsh='ssh  -p 22'"
+            # the port is usually 22 but might be different as defined in ssh config
+            # (automatically used by fabric)
+            port = self._c.port
+            assert isinstance(port, int) and port > 0
+            cnctn = f" --rsh='ssh  -p {port}'"
         else:
             cnctn = ""
 
